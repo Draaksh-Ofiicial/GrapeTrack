@@ -115,7 +115,7 @@ export async function POST(request: Request) {
       dueDate: body.dueDate
     };
     
-    demoTasks.push(newTask);
+    // Do not mutate demoTasks; just return the new task for demo purposes
     
     return NextResponse.json({
       success: true,

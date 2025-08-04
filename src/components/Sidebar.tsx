@@ -29,6 +29,7 @@ interface MenuItem {
 interface SidebarProps {
   activeItem?: string;
   projects?: Project[];
+  timezone?: string;
   onMenuItemClick?: (item: string) => void;
   onProjectClick?: (project: Project) => void;
   onAddProject?: () => void;
@@ -40,6 +41,7 @@ export default function Sidebar({
     { id: 1, name: 'Event planning', color: 'bg-pink-400' },
     { id: 2, name: 'Discussions', color: 'bg-green-400' }
   ],
+  timezone = 'Asia/Kolkata',
   onMenuItemClick,
   onProjectClick,
   onAddProject
@@ -58,7 +60,7 @@ export default function Sidebar({
     const now = new Date();
     const options: Intl.DateTimeFormatOptions = { 
       weekday: 'long',
-      timeZone: 'Asia/Kolkata'
+      timeZone: timezone
     };
     return now.toLocaleDateString('en-US', options);
   };

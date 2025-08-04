@@ -6,7 +6,7 @@ interface Task {
   name: string;
   assignedPeople: string[];
   status: 'To Do' | 'In Progress' | 'Done';
-  projectId: number;
+  projectId: number | undefined;
   createdAt: string;
   dueDate?: string;
 }
@@ -39,7 +39,7 @@ export default function CreateTaskModal({
     name: '',
     assignedPeople: '',
     status: 'To Do' as 'To Do' | 'In Progress' | 'Done',
-    projectId: projects.length > 0 ? projects[0].id : 1,
+    projectId: projects.length > 0 ? projects[0].id : undefined,
     dueDate: ''
   });
   const [loading, setLoading] = useState(false);
@@ -47,6 +47,10 @@ export default function CreateTaskModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
+    if (projects.length === 0 || formData.projectId === undefined) {
+      console.error('No project selected or available');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -71,7 +75,7 @@ export default function CreateTaskModal({
           name: '',
           assignedPeople: '',
           status: 'To Do',
-          projectId: projects.length > 0 ? projects[0].id : 1,
+          projectId: projects.length > 0 ? projects[0].id : undefined,
           dueDate: ''
         });
         onClose();
@@ -134,15 +138,23 @@ export default function CreateTaskModal({
               Project
             </label>
             <select
-              value={formData.projectId}
-              onChange={(e) => setFormData({ ...formData, projectId: parseInt(e.target.value) })}
+              value={formData.projectId || ''}
+              onChange={(e) => setFormData({ ...formData, projectId: e.target.value ? parseInt(e.target.value) : undefined })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
+              required
             >
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
+              {projects.length === 0 ? (
+                <option value="">No projects available</option>
+              ) : (
+                <>
+                  <option value="">Select a project</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </>
+              )}
             </select>
           </div>
 
@@ -183,7 +195,7 @@ export default function CreateTaskModal({
             </button>
             <button
               type="submit"
-              disabled={loading || !formData.name.trim()}
+              disabled={loading || !formData.name.trim() || !formData.projectId}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
               {loading ? (

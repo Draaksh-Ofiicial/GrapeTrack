@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       completedTasks: 0
     };
     
-    demoProjects.push(newProject);
+    // Do not mutate demoProjects; just return the new project for demo purposes
     
     return NextResponse.json({
       success: true,
