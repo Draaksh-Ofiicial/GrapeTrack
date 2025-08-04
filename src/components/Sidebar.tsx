@@ -11,12 +11,18 @@ import {
   SettingsIcon,
   HelpCircleIcon,
   PlusIcon,
+  LoaderIcon,
 } from 'lucide-react';
 
 interface Project {
   id: number;
   name: string;
   color: string;
+  description?: string;
+  status: 'Active' | 'Completed' | 'On Hold';
+  createdAt: string;
+  taskCount: number;
+  completedTasks: number;
 }
 
 interface MenuItem {
@@ -29,6 +35,7 @@ interface MenuItem {
 interface SidebarProps {
   activeItem?: string;
   projects?: Project[];
+  loading?: boolean;
   timezone?: string;
   onMenuItemClick?: (item: string) => void;
   onProjectClick?: (project: Project) => void;
@@ -38,9 +45,26 @@ interface SidebarProps {
 export default function Sidebar({ 
   activeItem = 'My tasks',
   projects = [
-    { id: 1, name: 'Event planning', color: 'bg-pink-400' },
-    { id: 2, name: 'Discussions', color: 'bg-green-400' }
+    { 
+      id: 1, 
+      name: 'Event planning', 
+      color: 'bg-pink-400',
+      status: 'Active' as const,
+      createdAt: new Date().toISOString(),
+      taskCount: 0,
+      completedTasks: 0
+    },
+    { 
+      id: 2, 
+      name: 'Discussions', 
+      color: 'bg-green-400',
+      status: 'Active' as const,
+      createdAt: new Date().toISOString(),
+      taskCount: 0,
+      completedTasks: 0
+    }
   ],
+  loading = false,
   timezone = 'Asia/Kolkata',
   onMenuItemClick,
   onProjectClick,
@@ -90,10 +114,10 @@ export default function Sidebar({
   };
 
   return (
-    <div className="w-64 bg-white shadow-sm border-r border-gray-200 h-screen flex flex-col">
+    <div className="w-64 bg-white shadow-sm border-r border-black h-screen flex flex-col">
       {/* Logo/Brand */}
-      <div className="p-6 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-900">{getCurrentDayName()}</h1>
+      <div className="px-5 py-5 border-b border-black">
+        <h1 className="text-xl font-bold text-gray-900">GrapeTrack</h1>
       </div>
 
       {/* Navigation Menu */}
@@ -128,23 +152,34 @@ export default function Sidebar({
             </button>
           </div>
           <ul className="space-y-2">
-            {projects.map((project) => (
-              <li key={project.id}>
-                <button
-                  onClick={() => handleProjectClick(project)}
-                  className="w-full flex items-center text-sm hover:bg-gray-50 rounded p-2 transition-colors cursor-pointer"
-                >
-                  <div className={`w-3 h-3 rounded-full mr-3 ${project.color}`}></div>
-                  <span className="text-gray-700">{project.name}</span>
-                </button>
+            {loading ? (
+              <li className="flex items-center justify-center py-4">
+                <LoaderIcon className="h-4 w-4 animate-spin text-gray-400 mr-2" />
+                <span className="text-xs text-gray-500">Loading projects...</span>
               </li>
-            ))}
+            ) : projects.length === 0 ? (
+              <li className="py-4 text-center">
+                <p className="text-xs text-gray-500">No projects yet</p>
+              </li>
+            ) : (
+              projects.map((project) => (
+                <li key={project.id}>
+                  <button
+                    onClick={() => handleProjectClick(project)}
+                    className="w-full flex items-center text-sm hover:bg-gray-50 rounded p-2 transition-colors cursor-pointer"
+                  >
+                    <div className={`w-3 h-3 rounded-full mr-3 ${project.color}`}></div>
+                    <span className="text-gray-700">{project.name}</span>
+                  </button>
+                </li>
+              ))
+            )}
           </ul>
         </div>
       </nav>
 
       {/* Bottom Menu */}
-      <div className="p-3 border-t border-gray-200 bg-white">
+      <div className="p-3 border-t border-black bg-white">
         <ul className="space-y-1">
           <li>
             <button

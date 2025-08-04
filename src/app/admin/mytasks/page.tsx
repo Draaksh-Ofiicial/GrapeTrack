@@ -19,7 +19,7 @@ interface Task {
   name: string;
   assignedPeople: string[];
   status: 'To Do' | 'In Progress' | 'Done';
-  projectId: number;
+  projectId: number | undefined;
   createdAt: string;
   dueDate?: string;
 }
@@ -46,7 +46,6 @@ interface DashboardStats {
 
 export default function AdminMyTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,21 +67,15 @@ export default function AdminMyTasks() {
       try {
         setLoading(true);
         
-        // Fetch all data in parallel
-        const [tasksResponse, projectsResponse, statsResponse] = await Promise.all([
+        // Fetch data in parallel
+        const [tasksResponse, statsResponse] = await Promise.all([
           fetch('/api/tasks'),
-          fetch('/api/projects'),
           fetch('/api/stats')
         ]);
 
         if (tasksResponse.ok) {
           const tasksData = await tasksResponse.json();
           setTasks(tasksData.data || []);
-        }
-
-        if (projectsResponse.ok) {
-          const projectsData = await projectsResponse.json();
-          setProjects(projectsData.data || []);
         }
 
         if (statsResponse.ok) {
@@ -112,7 +105,7 @@ export default function AdminMyTasks() {
   };
 
   return (
-    <AdminLayout activeMenuItem="My tasks" projects={projects}>
+    <AdminLayout activeMenuItem="My tasks">
         {/* Header */}
         <Header
           searchQuery={searchQuery}
@@ -137,39 +130,36 @@ export default function AdminMyTasks() {
             <div className="flex space-x-6 mb-8">
               <div className="flex items-center">
                 <ClockIcon className="h-5 w-5 text-gray-400 mr-2" />
-                <span className="text-2xl font-bold text-gray-900">
+                <span className="text-sm font-bold text-gray-900">
                   {loading ? (
                     <LoaderIcon className="h-6 w-6 animate-spin" />
                   ) : (
                     stats?.hoursThisWeek || 0
                   )}
                 </span>
-                <span className="text-sm text-gray-500 ml-1">hrs</span>
-                <span className="text-xs text-gray-400 ml-1">this week</span>
+                <span className="text-sm text-gray-400 ml-1">hrs this week</span>
               </div>
               <div className="flex items-center">
                 <CalendarIcon className="h-5 w-5 text-gray-400 mr-2" />
-                <span className="text-2xl font-bold text-gray-900">
+                <span className="text-sm font-bold text-gray-900">
                   {loading ? (
                     <LoaderIcon className="h-6 w-6 animate-spin" />
                   ) : (
                     stats?.eventsThisMonth || 0
                   )}
                 </span>
-                <span className="text-sm text-gray-500 ml-1">events</span>
-                <span className="text-xs text-gray-400 ml-1">this month</span>
+                <span className="text-sm text-gray-400 ml-1">events this month</span>
               </div>
               <div className="flex items-center">
                 <CheckSquareIcon className="h-5 w-5 text-gray-400 mr-2" />
-                <span className="text-2xl font-bold text-gray-900">
+                <span className="text-sm font-bold text-gray-900">
                   {loading ? (
                     <LoaderIcon className="h-6 w-6 animate-spin" />
                   ) : (
                     stats?.projectsInProgress || 0
                   )}
                 </span>
-                <span className="text-sm text-gray-500 ml-1">projects</span>
-                <span className="text-xs text-gray-400 ml-1">in progress</span>
+                <span className="text-sm text-gray-400 ml-1">projects in progress</span>
               </div>
             </div>
           </div>
@@ -298,7 +288,6 @@ export default function AdminMyTasks() {
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onTaskCreated={handleTaskCreated}
-          projects={projects}
         />
     </AdminLayout>
   );

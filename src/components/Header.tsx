@@ -75,7 +75,7 @@ export default function Header({
   };
 
   return (
-    <header className={`bg-white shadow-sm border-b border-gray-200 px-6 py-4 ${className}`}>
+    <header className={`bg-white border-b border-black px-5 py-3 ${className}`}>
       <div className="flex items-center justify-between">
         {/* Search Bar */}
         <div className="flex-1 max-w-lg">
