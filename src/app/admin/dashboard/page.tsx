@@ -16,13 +16,8 @@ interface Project {
 }
 
 export default function AdminDashboard() {
-  const [projects] = useState<Project[]>([
-    { id: 1, name: 'Event planning', color: 'bg-pink-400' },
-    { id: 2, name: 'Discussions', color: 'bg-green-400' }
-  ]);
-
   return (
-    <AdminLayout activeMenuItem="Dashboard" projects={projects}>
+    <AdminLayout activeMenuItem="Dashboard">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">

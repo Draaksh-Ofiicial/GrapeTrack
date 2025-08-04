@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { XIcon, PlusIcon, LoaderIcon } from 'lucide-react';
 
 interface Task {
@@ -26,23 +26,55 @@ interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onTaskCreated: (task: Task) => void;
-  projects: Project[];
 }
 
 export default function CreateTaskModal({ 
   isOpen, 
   onClose, 
-  onTaskCreated, 
-  projects 
+  onTaskCreated
 }: CreateTaskModalProps) {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     assignedPeople: '',
     status: 'To Do' as 'To Do' | 'In Progress' | 'Done',
-    projectId: projects.length > 0 ? projects[0].id : undefined,
+    projectId: undefined as number | undefined,
     dueDate: ''
   });
   const [loading, setLoading] = useState(false);
+
+  // Fetch projects when modal opens
+  useEffect(() => {
+    if (isOpen && projects.length === 0) {
+      const fetchProjects = async () => {
+        try {
+          setLoadingProjects(true);
+          const response = await fetch('/api/projects');
+          
+          if (response.ok) {
+            const projectsData = await response.json();
+            const projectsList = projectsData.data || [];
+            setProjects(projectsList);
+            
+            // Set first project as default if available
+            if (projectsList.length > 0) {
+              setFormData(prev => ({
+                ...prev,
+                projectId: projectsList[0].id
+              }));
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching projects:', error);
+        } finally {
+          setLoadingProjects(false);
+        }
+      };
+
+      fetchProjects();
+    }
+  }, [isOpen, projects.length]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 
@@ -8,23 +8,65 @@ interface Project {
   id: number;
   name: string;
   color: string;
+  description?: string;
+  status: 'Active' | 'Completed' | 'On Hold';
+  createdAt: string;
+  taskCount: number;
+  completedTasks: number;
 }
 
 interface AdminLayoutProps {
   children: ReactNode;
   activeMenuItem?: string;
-  projects?: Project[];
 }
 
 export default function AdminLayout({ 
   children, 
-  activeMenuItem = 'Dashboard',
-  projects = [
-    { id: 1, name: 'Event planning', color: 'bg-pink-400' },
-    { id: 2, name: 'Discussions', color: 'bg-green-400' }
-  ]
+  activeMenuItem = 'Dashboard'
 }: AdminLayoutProps) {
+  const [projects, setProjects] = useState<Project[]>([
+    { 
+      id: 1, 
+      name: 'Event planning', 
+      color: 'bg-pink-400',
+      status: 'Active',
+      createdAt: new Date().toISOString(),
+      taskCount: 0,
+      completedTasks: 0
+    },
+    { 
+      id: 2, 
+      name: 'Discussions', 
+      color: 'bg-green-400',
+      status: 'Active',
+      createdAt: new Date().toISOString(),
+      taskCount: 0,
+      completedTasks: 0
+    }
+  ]);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  // Fetch projects data when component mounts
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/projects');
+        
+        if (response.ok) {
+          const projectsData = await response.json();
+          setProjects(projectsData.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
 
   // Define the navigation routes
   const navigationRoutes: Record<string, string> = {
@@ -64,6 +106,7 @@ export default function AdminLayout({
       <Sidebar
         activeItem={activeMenuItem}
         projects={projects}
+        loading={loading}
         onMenuItemClick={handleMenuItemClick}
         onProjectClick={handleProjectClick}
         onAddProject={handleAddProject}

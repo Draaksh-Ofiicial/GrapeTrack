@@ -164,7 +164,7 @@ export default function AdminProfile() {
 
   if (loading) {
     return (
-      <AdminLayout activeMenuItem="Profile" projects={projects}>
+      <AdminLayout activeMenuItem="Profile">
         <Header
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -185,7 +185,7 @@ export default function AdminProfile() {
 
   if (!profile) {
     return (
-      <AdminLayout activeMenuItem="Profile" projects={projects}>
+      <AdminLayout activeMenuItem="Profile">
         <Header
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -204,7 +204,7 @@ export default function AdminProfile() {
   }
 
   return (
-    <AdminLayout activeMenuItem="Profile" projects={projects}>
+    <AdminLayout activeMenuItem="Profile">
       <Header
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
