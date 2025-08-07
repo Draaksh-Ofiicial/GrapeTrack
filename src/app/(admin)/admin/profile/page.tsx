@@ -20,6 +20,7 @@ import {
   BellIcon
 } from 'lucide-react';
 import Header from '@/components/Header';
+import UserLoginStats from '@/components/UserLoginStats';
 
 interface Profile {
   id: number;
@@ -468,6 +469,11 @@ export default function AdminProfile() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Login Statistics */}
+          <div className="mt-6">
+            <UserLoginStats />
           </div>
         </div>
       </main>
