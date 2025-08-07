@@ -11,7 +11,6 @@ import {
   ChevronDownIcon,
   ChevronRightIcon
 } from 'lucide-react';
-import AdminLayout from '@/components/AdminLayout';
 
 interface FAQ {
   id: number;
@@ -60,7 +59,7 @@ export default function AdminHelp() {
   };
 
   return (
-    <AdminLayout activeMenuItem="Help & Support">
+    <>
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center">
@@ -212,6 +211,6 @@ export default function AdminHelp() {
           </div>
         </div>
       </main>
-    </AdminLayout>
+    </>
   );
 }

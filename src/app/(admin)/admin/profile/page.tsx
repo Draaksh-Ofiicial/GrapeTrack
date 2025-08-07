@@ -19,7 +19,6 @@ import {
   SettingsIcon,
   BellIcon
 } from 'lucide-react';
-import AdminLayout from '@/components/AdminLayout';
 import Header from '@/components/Header';
 
 interface Profile {
@@ -164,7 +163,7 @@ export default function AdminProfile() {
 
   if (loading) {
     return (
-      <AdminLayout activeMenuItem="Profile">
+      <>
         <Header
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -179,13 +178,13 @@ export default function AdminProfile() {
             </div>
           </div>
         </main>
-      </AdminLayout>
+      </>
     );
   }
 
   if (!profile) {
     return (
-      <AdminLayout activeMenuItem="Profile">
+      <>
         <Header
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -199,12 +198,12 @@ export default function AdminProfile() {
             <p className="text-gray-500">Unable to load profile data.</p>
           </div>
         </main>
-      </AdminLayout>
+      </>
     );
   }
 
   return (
-    <AdminLayout activeMenuItem="Profile">
+    <>
       <Header
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -472,6 +471,6 @@ export default function AdminProfile() {
           </div>
         </div>
       </main>
-    </AdminLayout>
+    </>
   );
 }

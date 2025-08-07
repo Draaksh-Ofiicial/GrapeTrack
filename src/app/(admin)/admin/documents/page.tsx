@@ -8,7 +8,6 @@ import {
   DownloadIcon,
   EyeIcon
 } from 'lucide-react';
-import AdminLayout from '@/components/AdminLayout';
 
 interface Document {
   id: number;
@@ -53,7 +52,7 @@ export default function AdminDocuments() {
   ]);
 
   return (
-    <AdminLayout activeMenuItem="Documents">
+    <>
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -150,6 +149,6 @@ export default function AdminDocuments() {
           </div>
         </div>
       </main>
-    </AdminLayout>
+    </>
   );
 }

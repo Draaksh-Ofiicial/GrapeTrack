@@ -33,7 +33,7 @@ export default function AdminSettings() {
   };
 
   return (
-    <AdminLayout activeMenuItem="Settings">
+    <>
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center">
@@ -241,6 +241,6 @@ export default function AdminSettings() {
           </div>
         </div>
       </main>
-    </AdminLayout>
+    </>
   );
 }
