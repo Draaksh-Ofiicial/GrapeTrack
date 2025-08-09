@@ -58,7 +58,7 @@ export default function AdminProjects() {
   }, []);
 
   return (
-    <AdminLayout activeMenuItem="Projects">
+    <>
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -120,6 +120,6 @@ export default function AdminProjects() {
           </div>
         )}
       </main>
-    </AdminLayout>
+    </>
   );
 }

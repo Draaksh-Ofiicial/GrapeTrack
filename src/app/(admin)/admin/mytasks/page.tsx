@@ -10,7 +10,6 @@ import {
   UsersIcon,
   LoaderIcon
 } from 'lucide-react';
-import AdminLayout from '@/components/AdminLayout';
 import CreateTaskModal from '@/components/CreateTaskModal';
 import Header from '@/components/Header';
 
@@ -105,7 +104,7 @@ export default function AdminMyTasks() {
   };
 
   return (
-    <AdminLayout activeMenuItem="My tasks">
+    <>
         {/* Header */}
         <Header
           searchQuery={searchQuery}
@@ -289,6 +288,6 @@ export default function AdminMyTasks() {
           onClose={() => setShowCreateModal(false)}
           onTaskCreated={handleTaskCreated}
         />
-    </AdminLayout>
+    </>
   );
 }

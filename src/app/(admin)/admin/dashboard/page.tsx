@@ -7,7 +7,6 @@ import {
   UsersIcon,
   FolderIcon
 } from 'lucide-react';
-import AdminLayout from '@/components/AdminLayout';
 
 interface Project {
   id: number;
@@ -17,7 +16,7 @@ interface Project {
 
 export default function AdminDashboard() {
   return (
-    <AdminLayout activeMenuItem="Dashboard">
+    <>
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -87,6 +86,6 @@ export default function AdminDashboard() {
           </p>
         </div>
       </main>
-    </AdminLayout>
+    </>
   );
 }
