@@ -4,4 +4,6 @@ export { default as CreateTaskModal } from './CreateTaskModal';
 export { default as Header } from './Header';
 export { default as AuthProvider } from './AuthProvider';
 export { default as UserLoginStats } from './UserLoginStats';
+export { default as UserMenu } from './UserMenu';
+export { default as LocationSuggestion } from './LocationSuggestion';
     

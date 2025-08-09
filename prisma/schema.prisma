@@ -51,6 +51,22 @@ model User {
   lastLoginAt   DateTime?
   loginCount    Int       @default(0)
   
+  // Profile fields
+  role          String?   @default("Admin")
+  department    String?   @default("Administration")
+  phone         String?
+  location      String?
+  timezone      String?
+  bio           String?
+  skills        String[]  @default([])
+  
+  // User preferences
+  emailNotifications Boolean @default(true)
+  pushNotifications  Boolean @default(true)
+  weeklyReports      Boolean @default(false)
+  taskReminders      Boolean @default(true)
+  theme              String  @default("light")
+  
   accounts Account[]
   sessions Session[]
   loginHistory LoginHistory[]
