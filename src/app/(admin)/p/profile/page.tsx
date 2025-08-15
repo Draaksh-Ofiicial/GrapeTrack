@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { 
+import {
   UserIcon,
   MailIcon,
   PhoneIcon,
@@ -18,13 +18,11 @@ import {
   UsersIcon,
   FolderIcon,
   LoaderIcon,
-  SettingsIcon,
-  BellIcon
+
 } from 'lucide-react';
 import Header from '@/components/Header';
-import UserLoginStats from '@/components/UserLoginStats';
-import UserMenu from '@/components/UserMenu';
 import LocationSuggestion from '@/components/LocationSuggestion';
+import Image from 'next/image';
 
 interface Profile {
   id: string;
@@ -38,7 +36,6 @@ interface Profile {
   timezone?: string;
   createdAt: string;
   lastLoginAt?: string;
-  loginCount: number;
   bio?: string;
   skills: string[];
   stats: {
@@ -60,32 +57,25 @@ interface Profile {
     description: string;
     timestamp: string;
   }>;
-  recentLogins?: Array<{
-    id: string;
-    loginAt: string;
-    ipAddress?: string;
-    userAgent?: string;
-    provider?: string;
-    success: boolean;
-  }>;
+  recentLogins?: Array<RecentLogin>;
 }
 
-interface Project {
-  id: number;
-  name: string;
-  color: string;
-  description?: string;
-  status: 'Active' | 'Completed' | 'On Hold';
-  createdAt: string;
-  taskCount: number;
-  completedTasks: number;
-}
+type RecentLogin = {
+  id: string;
+  loginAt: string;
+  ipAddress?: string;
+  userAgent?: string;
+  provider?: string;
+  success: boolean;
+};
+
+// Project type not used on this page
 
 export default function AdminProfile() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
+  // projects removed from this page (unused)
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Profile>>({});
@@ -96,150 +86,117 @@ export default function AdminProfile() {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/admin/login');
+      router.push('/login');
     }
   }, [status, router]);
 
   // Fetch profile data from session and database
-  const fetchData = useCallback(async () => {
-    if (status === 'loading') return;
-    
-    if (!session?.user) {
-      setLoading(false);
-      return;
-    }
+  useEffect(() => {
+    let mounted = true;
 
-    // Don't fetch again if profile is already loaded for the same user
-    if (profile && profile.id === session.user.id) {
-      return;
-    }
+    const load = async () => {
+      if (status === 'loading') return;
+      if (!session?.user) {
+        setLoading(false);
+        return;
+      }
 
-    try {
+      // If profile already loaded for this user, skip
+      const sessUser = session.user as unknown as Record<string, unknown> | undefined;
+      if (profile && profile.id === String(sessUser?.id ?? '')) return;
+
       setLoading(true);
-      
-      // Get user's timezone
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      
-      // Try to fetch from database first
+
+      // attempt to fetch from API
       let profileData: Profile | null = null;
-      
       try {
         const response = await fetch('/api/profile');
         if (response.ok) {
           const result = await response.json();
           if (result.success && result.data) {
-            // Use database data
             profileData = {
               id: result.data.id,
               name: result.data.name || 'Unknown User',
               email: result.data.email || '',
-              image: result.data.image || undefined,
-              role: result.data.role || 'Admin',
-              department: result.data.department || 'Administration', 
+              image: result.data.avatar ?? result.data.image ?? undefined,
+              role: result.data.usertype ?? result.data.role ?? 'Admin',
+              department: result.data.department || 'Administration',
               phone: result.data.phone || '',
-              location: result.data.location || '',
+              location: result.data.address ?? result.data.profile?.address ?? '',
               timezone: result.data.timezone || userTimezone,
-              createdAt: result.data.createdAt || new Date().toISOString(),
-              lastLoginAt: result.data.lastLoginAt,
-              loginCount: result.data.loginCount || 0,
+              createdAt: result.data.created_at ?? result.data.createdAt ?? new Date().toISOString(),
+              lastLoginAt: result.data.last_login_at ?? result.data.lastLoginAt,
               bio: result.data.bio || '',
               skills: result.data.skills || [],
-              stats: {
-                projectsCompleted: 5,
-                totalTasks: 23,
-                teamMembers: 8,
-                successRate: 92
+              stats: result.data.stats || {
+                projectsCompleted: 0,
+                totalTasks: 0,
+                teamMembers: 0,
+                successRate: 0
               },
-              preferences: {
-                emailNotifications: result.data.emailNotifications ?? true,
-                pushNotifications: result.data.pushNotifications ?? true,
-                weeklyReports: result.data.weeklyReports ?? false,
-                taskReminders: result.data.taskReminders ?? true,
-                theme: result.data.theme || 'light'
+              preferences: result.data.preferences || {
+                emailNotifications: false,
+                pushNotifications: false,
+                weeklyReports: false,
+                taskReminders: false,
+                theme: 'light'
               },
-              recentActivity: [
-                {
-                  id: 1,
-                  action: 'Signed in',
-                  description: 'Logged in via Google OAuth',
-                  timestamp: result.data.lastLoginAt || new Date().toISOString()
-                }
-              ],
-              recentLogins: result.data.recentLogins || []
+              recentActivity: result.data.recentActivity || [],
+              recentLogins: (result.data.recent_logins ?? result.data.recentLogins) as RecentLogin[] ?? []
             };
           }
         }
       } catch (apiError) {
         console.error('Error fetching from API:', apiError);
       }
-      
-      // Fallback to session data if API fails
+
+      // Fallback to session data
       if (!profileData) {
+        const s = session.user as unknown as Record<string, unknown>;
         profileData = {
-          id: session.user.id || '',
-          name: session.user.name || 'Unknown User',
-          email: session.user.email || '',
-          image: session.user.image || undefined,
-          role: 'Admin',
+          id: String(s.id ?? ''),
+          name: String(s.name ?? 'Unknown User'),
+          email: String(s.email ?? ''),
+          image: (s.avatar ?? s.image) as string | undefined,
+          role: (s.usertype ?? s.role) as string | undefined,
           department: 'Administration',
-          phone: '',
-          location: '',
-          timezone: userTimezone,
-          createdAt: session.user.createdAt?.toString() || new Date().toISOString(),
-          lastLoginAt: session.user.lastLoginAt?.toString(),
-          loginCount: session.user.loginCount || 0,
-          bio: '',
-          skills: [],
+          phone: String(s.phone ?? ''),
+          location: String(s.location ?? ''),
+          timezone: String(s.timezone ?? userTimezone),
+          createdAt: String(s.created_at ?? s.createdAt ?? new Date().toISOString()),
+          lastLoginAt: String(s.last_login_at ?? s.lastLoginAt ?? '') || undefined,
+          bio: String(s.bio ?? ''),
+          skills: (s.skills as string[]) || [],
           stats: {
             projectsCompleted: 5,
             totalTasks: 23,
             teamMembers: 8,
             successRate: 92
           },
-          preferences: {
+          preferences: (s.preferences as unknown as Partial<Profile>['preferences']) || {
             emailNotifications: true,
             pushNotifications: true,
             weeklyReports: false,
             taskReminders: true,
             theme: 'light'
           },
-          recentActivity: [
-            {
-              id: 1,
-              action: 'Signed in',
-              description: 'Logged in via Google OAuth',
-              timestamp: session.user.lastLoginAt?.toString() || new Date().toISOString()
-            }
-          ]
+          recentActivity: [],
+          recentLogins: (s.recent_logins as unknown as RecentLogin[]) || (s.recentLogins as unknown as RecentLogin[]) || []
         };
       }
-      
-      setProfile(profileData);
-      setEditForm(profileData);
 
-      // Fetch projects data
-      try {
-        const projectsResponse = await fetch('/api/projects');
-        if (projectsResponse.ok) {
-          const projectsData = await projectsResponse.json();
-          setProjects(projectsData.data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching projects:', error);
+      if (mounted) {
+        setProfile(profileData);
+        setEditForm(profileData as Partial<Profile>);
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error setting up profile data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [status, session?.user?.id, session?.user?.name, session?.user?.email]);
+    };
 
-  // Only fetch data once when component mounts or user changes
-  useEffect(() => {
-    if (!profile || profile.id !== session?.user?.id) {
-      fetchData();
-    }
-  }, [fetchData, session?.user?.id, profile?.id]);
+    load();
+
+    return () => { mounted = false; };
+  }, [status, session, profile]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -253,21 +210,23 @@ export default function AdminProfile() {
 
   const handleSave = async () => {
     if (!profile) return;
-    
+
     try {
       setSaving(true);
-      
+
       // Only send editable fields
+      // PUT /api/profile expects schema-backed keys: phone, address, avatar, display_name, bio, locale, timezone, preferences
       const updateData = {
         phone: editForm.phone || '',
         bio: editForm.bio || '',
         skills: editForm.skills || [],
-        location: editForm.location || '',
+        // map UI "location" -> API "address"
+        address: editForm.location || editForm.location === '' ? '' : (editForm.location as string) || '',
         preferences: editForm.preferences
       };
-      
+
       console.log('Saving profile data:', updateData);
-      
+
       const response = await fetch('/api/profile', {
         method: 'PUT',
         headers: {
@@ -277,11 +236,11 @@ export default function AdminProfile() {
       });
 
       console.log('Response status:', response.status);
-      
+
       if (response.ok) {
         const result = await response.json();
         console.log('Update result:', result);
-        
+
         if (result.success) {
           // Update profile with response data, preserving all existing data
           const updatedProfile: Profile = {
@@ -289,18 +248,18 @@ export default function AdminProfile() {
             phone: result.data.phone || updateData.phone,
             bio: result.data.bio || updateData.bio,
             skills: result.data.skills || updateData.skills,
-            location: result.data.location || updateData.location,
+            location: result.data.address ?? result.data.profile?.address ?? updateData.address,
             preferences: {
               ...profile.preferences,
               ...updateData.preferences
             }
           };
-          
+
           console.log('Updated profile:', updatedProfile);
           setProfile(updatedProfile);
           setEditForm(updatedProfile);
           setIsEditing(false);
-          
+
           // Store in localStorage as backup
           localStorage.setItem('profileData', JSON.stringify(updatedProfile));
           console.log('Profile updated and saved successfully');
@@ -321,7 +280,7 @@ export default function AdminProfile() {
     }
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | number | boolean | undefined) => {
     setEditForm(prev => ({
       ...prev,
       [field]: value
@@ -330,7 +289,7 @@ export default function AdminProfile() {
 
   const handlePreferenceChange = async (preference: string, value: boolean) => {
     if (!profile) return;
-    
+
     // Update the UI immediately
     const currentPreferences = {
       emailNotifications: profile.preferences?.emailNotifications ?? true,
@@ -339,33 +298,33 @@ export default function AdminProfile() {
       taskReminders: profile.preferences?.taskReminders ?? true,
       theme: profile.preferences?.theme ?? 'light'
     };
-    
+
     const updatedPreferences = {
       ...currentPreferences,
       [preference]: value
     };
-    
+
     // Update both profile and editForm
     const updatedProfile = {
       ...profile,
       preferences: updatedPreferences
     };
-    
+
     setProfile(updatedProfile);
     setEditForm(updatedProfile);
-    
+
     try {
       // Save to database immediately
       const updateData = {
         phone: profile.phone || '',
         bio: profile.bio || '',
         skills: profile.skills || [],
-        location: profile.location || '',
+        address: profile.location || '',
         preferences: updatedPreferences
       };
-      
+
       console.log('Saving preference change:', preference, value, updatedPreferences);
-      
+
       const response = await fetch('/api/profile', {
         method: 'PUT',
         headers: {
@@ -477,15 +436,15 @@ export default function AdminProfile() {
         primaryAction={
           isEditing
             ? {
-                label: saving ? "Saving..." : "Save Changes",
-                icon: saving ? LoaderIcon : SaveIcon,
-                onClick: handleSave
-              }
+              label: saving ? "Saving..." : "Save Changes",
+              icon: saving ? LoaderIcon : SaveIcon,
+              onClick: handleSave
+            }
             : {
-                label: "Edit Profile",
-                icon: EditIcon,
-                onClick: handleEdit
-              }
+              label: "Edit Profile",
+              icon: EditIcon,
+              onClick: handleEdit
+            }
         }
         onNotificationClick={() => console.log('Notifications clicked')}
       />
@@ -498,11 +457,9 @@ export default function AdminProfile() {
               <div className="flex items-start justify-between">
                 <div className="flex items-center">
                   {profile.image ? (
-                    <img
-                      src={profile.image}
-                      alt={profile.name}
-                      className="w-24 h-24 rounded-full object-cover mr-6"
-                    />
+                    <div className="w-24 h-24 relative rounded-full overflow-hidden mr-6">
+                      <Image src={profile.image} alt={profile.name} fill sizes="96px" className="object-cover" />
+                    </div>
                   ) : (
                     <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-2xl font-bold text-white mr-6">
                       {getInitials(profile.name)}
@@ -511,14 +468,14 @@ export default function AdminProfile() {
                   <div>
                     {/* Name is not editable */}
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">{profile.name}</h1>
-                    
+
                     {/* Role is not editable */}
                     <p className="text-lg text-gray-600 mb-1">{profile.role}</p>
-                    
+
                     <p className="text-sm text-gray-500">{profile.department}</p>
                   </div>
                 </div>
-                
+
                 {isEditing && (
                   <button
                     onClick={handleCancel}
@@ -612,9 +569,9 @@ export default function AdminProfile() {
                 </div>
                 <div className="px-6 py-4">
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {(isEditing ? editForm.skills : profile.skills)?.map((skill, index) => (
+                    {(isEditing ? editForm.skills : profile.skills)?.map((skill) => (
                       <span
-                        key={index}
+                        key={skill}
                         className={`px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full flex items-center gap-2 ${isEditing ? 'pr-2' : ''}`}
                       >
                         {skill}
@@ -702,50 +659,7 @@ export default function AdminProfile() {
                 </div>
               </div>
 
-              {/* Recent Login Activity */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-900">Recent Login Activity</h2>
-                </div>
-                <div className="px-6 py-4">
-                  <div className="space-y-3">
-                    {profile.recentLogins && profile.recentLogins.length > 0 ? (
-                      profile.recentLogins.map((login, index) => (
-                        <div key={login.id} className="flex items-start">
-                          <div className={`w-2 h-2 rounded-full mt-2 mr-3 flex-shrink-0 ${
-                            login.success ? 'bg-green-500' : 'bg-red-500'
-                          }`}></div>
-                          <div className="flex-1">
-                            <p className="text-sm text-gray-900">
-                              <span className="font-medium">
-                                {login.success ? 'Successful login' : 'Failed login attempt'}
-                              </span>
-                              {login.provider && (
-                                <span className="text-gray-600"> via {login.provider}</span>
-                              )}
-                            </p>
-                            <div className="text-xs text-gray-500 mt-1 space-y-1">
-                              <p>{formatDate(login.loginAt)}</p>
-                              {login.ipAddress && (
-                                <p>IP: {login.ipAddress}</p>
-                              )}
-                              {login.userAgent && (
-                                <p className="truncate" title={login.userAgent}>
-                                  {login.userAgent.split(' ')[0]} {/* Show browser name */}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-4">
-                        <p className="text-sm text-gray-500">No recent login activity available</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              {/* Recent Login Activity removed — consolidated in UserLoginStats component */}
 
               {/* Preferences */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -757,52 +671,44 @@ export default function AdminProfile() {
                     <span className="text-sm text-gray-600">Email Notifications</span>
                     <button
                       onClick={() => handlePreferenceChange('emailNotifications', !profile?.preferences?.emailNotifications)}
-                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${
-                        profile?.preferences?.emailNotifications ? 'bg-blue-500' : 'bg-gray-300'
-                      }`}
+                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${profile?.preferences?.emailNotifications ? 'bg-blue-500' : 'bg-gray-300'
+                        }`}
                     >
-                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${
-                        profile?.preferences?.emailNotifications ? 'translate-x-5' : 'translate-x-1'
-                      }`}></div>
+                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${profile?.preferences?.emailNotifications ? 'translate-x-5' : 'translate-x-1'
+                        }`}></div>
                     </button>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Push Notifications</span>
                     <button
                       onClick={() => handlePreferenceChange('pushNotifications', !profile?.preferences?.pushNotifications)}
-                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${
-                        profile?.preferences?.pushNotifications ? 'bg-blue-500' : 'bg-gray-300'
-                      }`}
+                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${profile?.preferences?.pushNotifications ? 'bg-blue-500' : 'bg-gray-300'
+                        }`}
                     >
-                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${
-                        profile?.preferences?.pushNotifications ? 'translate-x-5' : 'translate-x-1'
-                      }`}></div>
+                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${profile?.preferences?.pushNotifications ? 'translate-x-5' : 'translate-x-1'
+                        }`}></div>
                     </button>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Weekly Reports</span>
                     <button
                       onClick={() => handlePreferenceChange('weeklyReports', !profile?.preferences?.weeklyReports)}
-                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${
-                        profile?.preferences?.weeklyReports ? 'bg-blue-500' : 'bg-gray-300'
-                      }`}
+                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${profile?.preferences?.weeklyReports ? 'bg-blue-500' : 'bg-gray-300'
+                        }`}
                     >
-                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${
-                        profile?.preferences?.weeklyReports ? 'translate-x-5' : 'translate-x-1'
-                      }`}></div>
+                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${profile?.preferences?.weeklyReports ? 'translate-x-5' : 'translate-x-1'
+                        }`}></div>
                     </button>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Task Reminders</span>
                     <button
                       onClick={() => handlePreferenceChange('taskReminders', !profile?.preferences?.taskReminders)}
-                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${
-                        profile?.preferences?.taskReminders ? 'bg-blue-500' : 'bg-gray-300'
-                      }`}
+                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${profile?.preferences?.taskReminders ? 'bg-blue-500' : 'bg-gray-300'
+                        }`}
                     >
-                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${
-                        profile?.preferences?.taskReminders ? 'translate-x-5' : 'translate-x-1'
-                      }`}></div>
+                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${profile?.preferences?.taskReminders ? 'translate-x-5' : 'translate-x-1'
+                        }`}></div>
                     </button>
                   </div>
                 </div>
@@ -834,9 +740,8 @@ export default function AdminProfile() {
                             </p>
                           )}
                         </div>
-                        <div className={`w-2 h-2 rounded-full mt-2 ${
-                          login.success ? 'bg-green-500' : 'bg-red-500'
-                        }`}></div>
+                        <div className={`w-2 h-2 rounded-full mt-2 ${login.success ? 'bg-green-500' : 'bg-red-500'
+                          }`}></div>
                       </div>
                     ))}
                   </div>
@@ -844,11 +749,6 @@ export default function AdminProfile() {
               </div>
             </div>
           )}
-
-          {/* Login Statistics */}
-          <div className="mt-6">
-            <UserLoginStats />
-          </div>
         </div>
       </main>
     </>

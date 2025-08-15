@@ -1,72 +1,33 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { authOptions } from '@/app/api/auth/[...nextauth]/authOptions';
+import type { AuthOptions } from 'next-auth';
+import db from '@/config/database';
+import { users } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const session = await getServerSession(authOptions as unknown as AuthOptions);
+    const sess = session as unknown as Record<string, unknown> | null;
+    if (!sess || !(sess['user'])) {
+      return NextResponse.json({ status: 'success', data: null });
     }
 
-    // Get user with login history
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: {
-        loginHistory: {
-          orderBy: { loginAt: 'desc' },
-          take: 10, // Last 10 logins
-        },
-      },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const maybeId = (sess['user'] as unknown as Record<string, unknown>)?.id;
+    if (typeof maybeId === 'string' && maybeId.length === 36 && maybeId.includes('-')) {
+      const result = await db.select().from(users).where(eq(users.id, maybeId)).execute();
+      if (result.length === 0) {
+        return NextResponse.json({ status: 'success', data: sess['user'] });
+      }
+      return NextResponse.json({ status: 'success', data: result[0] });
     }
 
-    // Get login statistics
-    const loginStats = await prisma.loginHistory.groupBy({
-      by: ['provider'],
-      where: { userId: session.user.id },
-      _count: {
-        provider: true,
-      },
-    });
-
-    // Get monthly login counts
-    const monthlyLogins = await prisma.loginHistory.findMany({
-      where: {
-        userId: session.user.id,
-        loginAt: {
-          gte: new Date(new Date().setMonth(new Date().getMonth() - 12)), // Last 12 months
-        },
-      },
-      select: {
-        loginAt: true,
-        provider: true,
-      },
-    });
-
-    return NextResponse.json({
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        createdAt: user.createdAt,
-        lastLoginAt: user.lastLoginAt,
-        loginCount: user.loginCount,
-      },
-      recentLogins: user.loginHistory,
-      loginStats,
-      monthlyLogins,
-    });
+    return NextResponse.json({ status: 'success', data: sess['user'] });
   } catch (error) {
-    console.error('Error fetching user login info:', error);
+    console.error('login-info error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { status: 'error', message: 'Failed to load user info', error: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

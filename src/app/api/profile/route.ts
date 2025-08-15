@@ -1,226 +1,120 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/api/auth/[...nextauth]/authOptions';
+import type { AuthOptions } from 'next-auth';
+import db from '@/config/database';
+import { users, user_profiles, user_settings } from '@/drizzle/schema';
+import type { userProfilesInterfaceInsert, userSettingsInterfaceInsert } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
+
+async function loadMergedProfile(id: string) {
+  const [u] = await db.select().from(users).where(eq(users.id, id)).execute();
+  const [profile] = await db.select().from(user_profiles).where(eq(user_profiles.user_id, id)).execute();
+  const [settings] = await db.select().from(user_settings).where(eq(user_settings.user_id, id)).execute();
+
+  if (!u) return null;
+
+  return {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    avatar: u.avatar ?? null,
+    phone: u.phone ?? null,
+    address: u.address ?? null,
+    usertype: u.usertype ?? null,
+    is_prime: u.is_prime ?? false,
+    email_notification: u.email_notification ?? true,
+    created_at: u.created_at ?? null,
+    profile: profile ?? null,
+    settings: settings ?? null,
+  };
+}
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
+    const session = await getServerSession(authOptions as unknown as AuthOptions);
+    const sess = session as unknown as Record<string, unknown> | null;
+    const sessUser = sess?.['user'] as Record<string, unknown> | undefined;
+    if (!sessUser || !sessUser.id) {
+      return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
 
-    try {
-      const user = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          role: true,
-          department: true,
-          phone: true,
-          location: true,
-          timezone: true,
-          bio: true,
-          skills: true,
-          createdAt: true,
-          lastLoginAt: true,
-          loginCount: true,
-          emailNotifications: true,
-          pushNotifications: true,
-          weeklyReports: true,
-          taskReminders: true,
-          theme: true,
-        }
-      });
-
-      // Get recent login history
-      const recentLogins = await prisma.loginHistory.findMany({
-        where: { userId: user?.id },
-        orderBy: { loginAt: 'desc' },
-        take: 5,
-        select: {
-          id: true,
-          loginAt: true,
-          ipAddress: true,
-          userAgent: true,
-          provider: true,
-          success: true,
-        }
-      });
-
-      if (!user) {
-        return NextResponse.json(
-          { success: false, error: 'User not found' },
-          { status: 404 }
-        );
-      }
-      
-      return NextResponse.json({
-        success: true,
-        data: {
-          ...user,
-          recentLogins
-        }
-      });
-    } catch (dbError) {
-      console.error('Database error:', dbError);
-      // Fallback to session data with defaults
-      const userData = {
-        id: session.user.id || '',
-        name: session.user.name || '',
-        email: session.user.email || '',
-        image: session.user.image || null,
-        role: 'Admin',
-        department: 'Administration',
-        phone: '',
-        location: '',
-        timezone: '',
-        bio: '',
-        skills: [],
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-        loginCount: 1,
-        emailNotifications: true,
-        pushNotifications: true,
-        weeklyReports: false,
-        taskReminders: true,
-        theme: 'light',
-        recentLogins: []
-      };
-      
-      return NextResponse.json({
-        success: true,
-        data: userData
-      });
-    }
+    const id = String(sessUser.id);
+    const merged = await loadMergedProfile(id);
+    if (!merged) return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    return NextResponse.json({ success: true, data: merged });
   } catch (error) {
-    console.error('Error fetching profile:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to fetch profile data' 
-      },
-      { status: 500 }
-    );
+    console.error('profile GET error', error);
+    return NextResponse.json({ success: false, error: (error as Error).message || String(error) }, { status: 500 });
   }
 }
 
 export async function PUT(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
+    const session = await getServerSession(authOptions as unknown as AuthOptions);
+    const sess = session as unknown as Record<string, unknown> | null;
+    const sessUser = sess?.['user'] as Record<string, unknown> | undefined;
+    if (!sessUser || !sessUser.id) {
+      return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { phone, bio, skills, location, preferences } = body;
-    
-    console.log('Updating profile for user:', session.user.email);
-    console.log('Update data:', { phone, bio, skills, location, preferences });
-    
-    try {
-      const updateData: any = {
-        phone: phone || null,
-        bio: bio || null,
-        skills: skills || [],
-        location: location || null,
-        updatedAt: new Date(),
-      };
+    const id = String(sessUser.id);
+    const bodyRaw = await request.json().catch(() => ({} as unknown));
 
-      // Add preferences if provided
-      if (preferences) {
-        if (preferences.emailNotifications !== undefined) updateData.emailNotifications = preferences.emailNotifications;
-        if (preferences.pushNotifications !== undefined) updateData.pushNotifications = preferences.pushNotifications;
-        if (preferences.weeklyReports !== undefined) updateData.weeklyReports = preferences.weeklyReports;
-        if (preferences.taskReminders !== undefined) updateData.taskReminders = preferences.taskReminders;
-        if (preferences.theme !== undefined) updateData.theme = preferences.theme;
+    type ProfileUpdate = {
+      phone?: string;
+      address?: string;
+      avatar?: string;
+      display_name?: string;
+      bio?: string;
+      locale?: string;
+      timezone?: string;
+      preferences?: Record<string, unknown> | null;
+    };
+
+    const body = bodyRaw as ProfileUpdate;
+
+    // Update users table for phone/address/avatar
+    const userUpdate: Partial<{ phone: string; address: string; avatar: string }> = {};
+    if (typeof body.phone !== 'undefined') userUpdate.phone = body.phone;
+    if (typeof body.address !== 'undefined') userUpdate.address = body.address;
+    if (typeof body.avatar !== 'undefined') userUpdate.avatar = body.avatar;
+
+    if (Object.keys(userUpdate).length > 0) {
+      await db.update(users).set(userUpdate).where(eq(users.id, id)).execute();
+    }
+
+    // Upsert profile (user_profiles)
+    if (typeof body.display_name !== 'undefined' || typeof body.bio !== 'undefined' || typeof body.locale !== 'undefined' || typeof body.timezone !== 'undefined') {
+      const existing = await db.select().from(user_profiles).where(eq(user_profiles.user_id, id)).execute();
+      const vals: Partial<{ user_id: string; display_name?: string; bio?: string; locale?: string; timezone?: string }> = { user_id: id };
+      if (typeof body.display_name !== 'undefined') vals.display_name = body.display_name;
+      if (typeof body.bio !== 'undefined') vals.bio = body.bio;
+      if (typeof body.locale !== 'undefined') vals.locale = body.locale;
+      if (typeof body.timezone !== 'undefined') vals.timezone = body.timezone;
+
+      if (existing.length === 0) {
+        await db.insert(user_profiles).values(vals as userProfilesInterfaceInsert).execute();
+      } else {
+        await db.update(user_profiles).set(vals).where(eq(user_profiles.user_id, id)).execute();
       }
-
-      const updatedUser = await prisma.user.update({
-        where: { email: session.user.email },
-        data: updateData,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          role: true,
-          department: true,
-          phone: true,
-          location: true,
-          timezone: true,
-          bio: true,
-          skills: true,
-          createdAt: true,
-          lastLoginAt: true,
-          loginCount: true,
-          emailNotifications: true,
-          pushNotifications: true,
-          weeklyReports: true,
-          taskReminders: true,
-          theme: true,
-        }
-      });
-      
-      console.log('Profile updated successfully:', updatedUser);
-      
-      return NextResponse.json({
-        success: true,
-        data: updatedUser,
-        message: 'Profile updated successfully'
-      });
-    } catch (dbError) {
-      console.error('Database error during update:', dbError);
-      // Fallback response
-      const updatedData = {
-        id: session.user.id || '',
-        name: session.user.name || '',
-        email: session.user.email || '',
-        image: session.user.image || null,
-        role: 'Admin',
-        department: 'Administration',
-        phone: phone || '',
-        location: location || '',
-        timezone: '',
-        bio: bio || '',
-        skills: skills || [],
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-        loginCount: 1,
-        emailNotifications: preferences?.emailNotifications ?? true,
-        pushNotifications: preferences?.pushNotifications ?? true,
-        weeklyReports: preferences?.weeklyReports ?? false,
-        taskReminders: preferences?.taskReminders ?? true,
-        theme: preferences?.theme ?? 'light',
-      };
-      
-      console.log('Using fallback data:', updatedData);
-      
-      return NextResponse.json({
-        success: true,
-        data: updatedData,
-        message: 'Profile updated successfully (fallback)'
-      });
     }
+
+    // Upsert settings (user_settings)
+    if (typeof body.preferences !== 'undefined') {
+      const existing = await db.select().from(user_settings).where(eq(user_settings.user_id, id)).execute();
+      const vals: Partial<{ user_id: string; preferences: Record<string, unknown> | null }> = { user_id: id, preferences: body.preferences ?? null };
+      if (existing.length === 0) {
+        await db.insert(user_settings).values(vals as userSettingsInterfaceInsert).execute();
+      } else {
+        await db.update(user_settings).set(vals).where(eq(user_settings.user_id, id)).execute();
+      }
+    }
+
+    const merged = await loadMergedProfile(id);
+    return NextResponse.json({ success: true, data: merged });
   } catch (error) {
-    console.error('Error updating profile:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to update profile: ' + (error instanceof Error ? error.message : 'Unknown error')
-      },
-      { status: 500 }
-    );
+    console.error('profile PUT error', error);
+    return NextResponse.json({ success: false, error: (error as Error).message || String(error) }, { status: 500 });
   }
 }

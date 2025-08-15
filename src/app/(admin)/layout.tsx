@@ -3,6 +3,7 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import useCurrentUser from '@/hooks/useCurrentUser';
 
 interface Project {
   id: number;
@@ -24,6 +25,7 @@ export default function AdminLayout({
   children, 
   activeMenuItem = 'Dashboard'
 }: AdminLayoutProps) {
+  const { user } = useCurrentUser();
   const [projects, setProjects] = useState<Project[]>([
     { 
       id: 1, 
@@ -110,6 +112,7 @@ export default function AdminLayout({
         onMenuItemClick={handleMenuItemClick}
         onProjectClick={handleProjectClick}
         onAddProject={handleAddProject}
+        user={user ?? undefined}
       />
       <div className="flex-1 flex flex-col">
         {children}

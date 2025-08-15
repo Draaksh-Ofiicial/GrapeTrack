@@ -1,18 +1,11 @@
 'use client';
 
-import { useState } from 'react';
 import { 
   BarChart3Icon,
   TrendingUpIcon,
   UsersIcon,
   FolderIcon
 } from 'lucide-react';
-
-interface Project {
-  id: number;
-  name: string;
-  color: string;
-}
 
 export default function AdminDashboard() {
   return (

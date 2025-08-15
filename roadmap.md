@@ -13,7 +13,7 @@
 **Role-based Constants & Types:**
 - The roles and hierarchy will dynamic as admin's choice 
 ```ts
-UserRoles = ['admin', 'teamLead', 'member', 'viewer']
+UserRoles = ['admin', 'teamLead', 'member', 'viewer', 'and many more']
 ```
 - Create reusable type definitions/interfaces
 

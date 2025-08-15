@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn, getSession } from 'next-auth/react';
+import { signIn } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import { 
   MailIcon,
   LockIcon,
@@ -21,15 +22,27 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Debounced input change handler
+
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Clear error when user starts typing
-    if (error) setError('');
+
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+    }
+
+    debounceTimeout.current = setTimeout(() => {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+      // Clear error when user starts typing
+      if (error) setError('');
+    }, 300);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,16 +55,27 @@ export default function LoginPage() {
       if (!formData.email || !formData.password) {
         throw new Error('Please fill in all fields');
       }
-      
-      // For demo purposes, accept any email/password combination
-      // In a real app, you would implement proper authentication
-      if (formData.email && formData.password) {
-        router.push('/admin/dashboard');
-      } else {
-        throw new Error('Invalid credentials');
+      // Use NextAuth credentials provider to sign in
+      console.log(formData);
+      const result = await signIn('credentials', {
+        redirect: false,
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (result?.error) {
+        throw new Error(result.error || 'Invalid credentials');
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+
+      // success: navigate to intended page or admin dashboard
+      const redirectTo = (new URLSearchParams(window.location.search)).get('from') || '/p/dashboard';
+      router.push(redirectTo);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Login failed');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -72,7 +96,7 @@ export default function LoginPage() {
       } else if (result?.ok) {
         router.push('/admin/dashboard');
       }
-    } catch (err) {
+    } catch {
       setError('Google login failed');
     } finally {
       setIsLoading(false);
@@ -97,6 +121,16 @@ export default function LoginPage() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-sm border border-gray-200 rounded-lg sm:px-10">
+          {/* Map NextAuth error query param to friendly message */}
+          {(!error && searchParams?.get('error')) && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+              <AlertCircleIcon className="h-5 w-5 text-red-500 mr-2" />
+              <span className="text-sm text-red-700">
+                {searchParams.get('error') === 'CredentialsSignin' ? 'Invalid email or password' : searchParams.get('error')}
+              </span>
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
               <AlertCircleIcon className="h-5 w-5 text-red-500 mr-2" />
@@ -230,15 +264,6 @@ export default function LoginPage() {
               </div>
             </div>
           </form>
-
-          <div className="mt-6">
-            <div className="text-center">
-              <span className="text-sm text-gray-600">Don't have an account? </span>
-              <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-                Sign up
-              </a>
-            </div>
-          </div>
         </div>
       </div>
     </div>

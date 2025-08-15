@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import {
-  ClockIcon,
   CalendarIcon,
   UserIcon,
   ShieldCheckIcon,
-  TrendingUpIcon,
 } from 'lucide-react';
+import useCurrentUser from '@/hooks/useCurrentUser';
+import { usersInterface } from '@/drizzle/schema';
 
 interface LoginHistoryItem {
   id: string;
@@ -25,8 +25,6 @@ interface UserLoginInfo {
     email: string;
     image?: string;
     createdAt: string;
-    lastLoginAt?: string;
-    loginCount: number;
   };
   recentLogins: LoginHistoryItem[];
   loginStats: Array<{
@@ -40,27 +38,54 @@ interface UserLoginInfo {
 }
 
 export default function UserLoginStats() {
+  const { user: currentUser, loading: userLoading } = useCurrentUser();
   const { data: session } = useSession();
   const [loginInfo, setLoginInfo] = useState<UserLoginInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Map available fields from useCurrentUser into the component's expected shape.
+  // We don't have login history from the hook, so recentLogins/loginStats/monthlyLogins
+  // will be empty arrays unless other data sources are available.
   useEffect(() => {
-    if (session?.user) {
-      fetchLoginInfo();
-    }
-  }, [session]);
+    setLoading(Boolean(userLoading));
 
-  const fetchLoginInfo = async () => {
-    try {
-      const response = await fetch('/api/user/login-info');
-      if (response.ok) {
-        const data = await response.json();
-        setLoginInfo(data);
-      }
-    } catch (error) {
-      console.error('Error fetching login info:', error);
-    } finally {
+    if (currentUser) {
+      const cu = currentUser as usersInterface;
+      setLoginInfo({
+        user: {
+          id: String(cu?.id ?? ''),
+          name: String(cu?.name ?? ''),
+          email: String(cu?.email ?? ''),
+          image: cu.avatar ?? undefined,
+          createdAt: String(cu?.created_at),
+        },
+        recentLogins: [],
+        loginStats: [],
+        monthlyLogins: []
+      });
       setLoading(false);
+      return;
+    }
+
+    // If session exists but hook hasn't loaded a DB-backed user, keep loading false to show fallback UI.
+    if (!userLoading) setLoading(false);
+  }, [currentUser, userLoading, session]);
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString();
+  };
+
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffInHours < 1) {
+      return 'Just now';
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)} hours ago`;
+    } else {
+      return `${Math.floor(diffInHours / 24)} days ago`;
     }
   };
 
@@ -87,24 +112,6 @@ export default function UserLoginStats() {
     );
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
-
-  const formatRelativeTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
-    if (diffInHours < 1) {
-      return 'Just now';
-    } else if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)} hours ago`;
-    } else {
-      return `${Math.floor(diffInHours / 24)} days ago`;
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* User Overview */}
@@ -114,24 +121,12 @@ export default function UserLoginStats() {
           Account Overview
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <TrendingUpIcon className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-            <p className="text-2xl font-bold text-blue-600">{loginInfo.user.loginCount}</p>
-            <p className="text-sm text-gray-600">Total Logins</p>
-          </div>
           <div className="text-center p-4 bg-green-50 rounded-lg">
             <CalendarIcon className="h-8 w-8 text-green-600 mx-auto mb-2" />
             <p className="text-sm font-medium text-green-600">
               {formatRelativeTime(loginInfo.user.createdAt)}
             </p>
             <p className="text-sm text-gray-600">Member Since</p>
-          </div>
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <ClockIcon className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-            <p className="text-sm font-medium text-purple-600">
-              {loginInfo.user.lastLoginAt ? formatRelativeTime(loginInfo.user.lastLoginAt) : 'Never'}
-            </p>
-            <p className="text-sm text-gray-600">Last Login</p>
           </div>
         </div>
       </div>

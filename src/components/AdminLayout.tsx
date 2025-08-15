@@ -3,6 +3,7 @@
 import { ReactNode, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import useCurrentUser from '@/hooks/useCurrentUser';
 
 interface Project {
   id: number;
@@ -20,23 +21,24 @@ interface AdminLayoutProps {
   activeMenuItem?: string;
 }
 
-export default function AdminLayout({ 
-  children, 
+export default function AdminLayout({
+  children,
   activeMenuItem = 'Dashboard'
 }: AdminLayoutProps) {
+  const { user } = useCurrentUser();
   const [projects, setProjects] = useState<Project[]>([
-    { 
-      id: 1, 
-      name: 'Event planning', 
+    {
+      id: 1,
+      name: 'Event planning',
       color: 'bg-pink-400',
       status: 'Active',
       createdAt: new Date().toISOString(),
       taskCount: 0,
       completedTasks: 0
     },
-    { 
-      id: 2, 
-      name: 'Discussions', 
+    {
+      id: 2,
+      name: 'Discussions',
       color: 'bg-green-400',
       status: 'Active',
       createdAt: new Date().toISOString(),
@@ -53,7 +55,7 @@ export default function AdminLayout({
       try {
         setLoading(true);
         const response = await fetch('/api/projects');
-        
+
         if (response.ok) {
           const projectsData = await response.json();
           setProjects(projectsData.data || []);
@@ -70,18 +72,16 @@ export default function AdminLayout({
 
   // Define the navigation routes
   const navigationRoutes: Record<string, string> = {
-    'Dashboard': '/admin/dashboard',
-    'Projects': '/admin/projects',
-    'My tasks': '/admin/mytasks',
-    'Documents': '/admin/documents',
-    'Receipts': '/admin/receipts',
-    'Settings': '/admin/settings',
-    'Help & Support': '/admin/help'
+    'Dashboard': '/p/dashboard',
+    'Projects': '/p/projects',
+    'My tasks': '/p/mytasks',
+    'Documents': '/p/documents',
+    'Receipts': '/p/receipts',
+    'Settings': '/p/settings',
+    'Help & Support': '/p/help'
   };
 
   const handleMenuItemClick = (item: string) => {
-    console.log('Menu item clicked:', item);
-    
     // Navigate to the appropriate page
     const route = navigationRoutes[item];
     if (route) {
@@ -110,6 +110,7 @@ export default function AdminLayout({
         onMenuItemClick={handleMenuItemClick}
         onProjectClick={handleProjectClick}
         onAddProject={handleAddProject}
+        user={user ?? undefined}
       />
       <div className="flex-1 flex flex-col">
         {children}
