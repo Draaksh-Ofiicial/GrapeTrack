@@ -7,6 +7,7 @@ import {
     uuid,
     jsonb,
     PgColumn,
+    primaryKey,
 } from "drizzle-orm/pg-core";
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
 
@@ -17,6 +18,24 @@ export const roles = pgTable("roles", {
     description: text("description"),
     created_at: timestamp("created_at").notNull().defaultNow(),
 });
+
+// Permissions table: canonical list of all available permissions in the system
+export const permissions = pgTable("permissions", {
+    name: varchar("name", { length: 100 }).primaryKey(),
+    description: text("description"),
+    resource: varchar("resource", { length: 50 }).notNull(), // e.g., 'projects', 'tasks', 'users'
+    action: varchar("action", { length: 50 }).notNull(), // e.g., 'read', 'write', 'delete'
+    created_at: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Role-Permission mapping table: defines which permissions each role has
+export const role_permissions = pgTable("role_permissions", {
+    role_name: varchar("role_name", { length: 100 }).notNull().references((): PgColumn => roles.name, { onDelete: "cascade" }),
+    permission_name: varchar("permission_name", { length: 100 }).notNull().references((): PgColumn => permissions.name, { onDelete: "cascade" }),
+    created_at: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+    pk: primaryKey({ columns: [table.role_name, table.permission_name] }),
+}));
 
 // Users table: core auth data and reference to role name for single-role-per-user.
 export const users = pgTable("users", {
@@ -111,6 +130,12 @@ export const activity_logs = pgTable("activity_logs", {
 type rolesInterface = InferSelectModel<typeof roles>;
 type rolesInterfaceInsert = InferInsertModel<typeof roles>;
 
+type permissionsInterface = InferSelectModel<typeof permissions>;
+type permissionsInterfaceInsert = InferInsertModel<typeof permissions>;
+
+type rolePermissionsInterface = InferSelectModel<typeof role_permissions>;
+type rolePermissionsInterfaceInsert = InferInsertModel<typeof role_permissions>;
+
 type usersInterface = InferSelectModel<typeof users>;
 type usersInterfaceInsert = InferInsertModel<typeof users>;
 
@@ -131,4 +156,4 @@ type userSettingsInterfaceInsert = InferInsertModel<typeof user_settings>;
 type oauthAccountsInterface = InferSelectModel<typeof oauth_accounts>;
 type oauthAccountsInterfaceInsert = InferInsertModel<typeof oauth_accounts>;
 
-export type { rolesInterface, usersInterface, invitationsInterface, activityLogsInterface, userProfilesInterface, userSettingsInterface, oauthAccountsInterface, rolesInterfaceInsert, usersInterfaceInsert, invitationsInterfaceInsert, activityLogsInterfaceInsert, userProfilesInterfaceInsert, userSettingsInterfaceInsert, oauthAccountsInterfaceInsert };
+export type { rolesInterface, permissionsInterface, rolePermissionsInterface, usersInterface, invitationsInterface, activityLogsInterface, userProfilesInterface, userSettingsInterface, oauthAccountsInterface, rolesInterfaceInsert, permissionsInterfaceInsert, rolePermissionsInterfaceInsert, usersInterfaceInsert, invitationsInterfaceInsert, activityLogsInterfaceInsert, userProfilesInterfaceInsert, userSettingsInterfaceInsert, oauthAccountsInterfaceInsert };

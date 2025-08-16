@@ -29,7 +29,7 @@ export async function middleware(req: NextRequest) {
 
 		if (pathname.startsWith('/p/admin') || pathname === '/p/settings') {
 			const role = (token.user as usersInterface)?.usertype ?? null;
-			const allowed = roleHasPermission(role, 'admin.access');
+			const allowed = await roleHasPermission(role, 'admin.access');
 			if (!allowed) {
 				return new NextResponse('Access denied', { status: 403 });
 			}

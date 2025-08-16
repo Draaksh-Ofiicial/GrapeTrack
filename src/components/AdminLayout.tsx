@@ -110,7 +110,7 @@ export default function AdminLayout({
         onMenuItemClick={handleMenuItemClick}
         onProjectClick={handleProjectClick}
         onAddProject={handleAddProject}
-        user={user ?? undefined}
+        user={user ? (user as unknown as Partial<Record<string, unknown>>) : undefined}
       />
       <div className="flex-1 flex flex-col">
         {children}

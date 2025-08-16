@@ -8,6 +8,8 @@
     "build": "next build",
     "postbuild": "npm run seed",
     "seed:admin": "node --experimental-specifier-resolution=node ./scripts/seed-admin.mjs",
+    "seed:permissions": "node --experimental-specifier-resolution=node ./scripts/seed-permissions.mjs",
+    "seed:all": "npm run seed:admin && npm run seed:permissions",
     "start": "next start",
     "lint": "next lint",
     "generate": "drizzle-kit generate --out src/drizzle/migrations --schema src/drizzle/schema.ts --dialect postgresql",

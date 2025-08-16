@@ -1,0 +1,1 @@
+ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_role_name_permission_name_pk" PRIMARY KEY("role_name","permission_name");

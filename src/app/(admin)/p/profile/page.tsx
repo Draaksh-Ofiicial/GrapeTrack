@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
   UserIcon,
@@ -13,69 +12,38 @@ import {
   EditIcon,
   SaveIcon,
   XIcon,
-  CheckCircleIcon,
-  TrendingUpIcon,
-  UsersIcon,
-  FolderIcon,
   LoaderIcon,
-
 } from 'lucide-react';
 import Header from '@/components/Header';
 import LocationSuggestion from '@/components/LocationSuggestion';
 import Image from 'next/image';
+import useCurrentUser from '@/hooks/useCurrentUser';
 
 interface Profile {
   id: string;
   name: string;
   email: string;
-  image?: string;
-  role?: string;
-  department?: string;
-  phone?: string;
-  location?: string;
-  timezone?: string;
-  createdAt: string;
-  lastLoginAt?: string;
-  bio?: string;
-  skills: string[];
-  stats: {
-    projectsCompleted: number;
-    totalTasks: number;
-    teamMembers: number;
-    successRate: number;
-  };
+  avatar?: string | null;
+  usertype?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  timezone?: string | null;
+  created_at?: Date | null;
+  bio?: string | null;
+  display_name?: string | null;
   preferences: {
     emailNotifications: boolean;
     pushNotifications: boolean;
     weeklyReports: boolean;
     taskReminders: boolean;
-    theme: string;
   };
-  recentActivity: Array<{
-    id: number;
-    action: string;
-    description: string;
-    timestamp: string;
-  }>;
-  recentLogins?: Array<RecentLogin>;
+  skills: string[];
 }
 
-type RecentLogin = {
-  id: string;
-  loginAt: string;
-  ipAddress?: string;
-  userAgent?: string;
-  provider?: string;
-  success: boolean;
-};
-
-// Project type not used on this page
-
 export default function AdminProfile() {
-  const { data: session, status } = useSession();
+  const { user, loading: userLoading, isSignedIn } = useCurrentUser();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
-  // projects removed from this page (unused)
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Profile>>({});
@@ -85,118 +53,50 @@ export default function AdminProfile() {
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (!userLoading && !isSignedIn) {
       router.push('/login');
     }
-  }, [status, router]);
+  }, [userLoading, isSignedIn, router]);
 
-  // Fetch profile data from session and database
+  // Load profile data from session
   useEffect(() => {
-    let mounted = true;
+    if (userLoading) {
+      return; // Still loading user data
+    }
 
-    const load = async () => {
-      if (status === 'loading') return;
-      if (!session?.user) {
-        setLoading(false);
-        return;
-      }
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
-      // If profile already loaded for this user, skip
-      const sessUser = session.user as unknown as Record<string, unknown> | undefined;
-      if (profile && profile.id === String(sessUser?.id ?? '')) return;
-
-      setLoading(true);
-      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-      // attempt to fetch from API
-      let profileData: Profile | null = null;
-      try {
-        const response = await fetch('/api/profile');
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.data) {
-            profileData = {
-              id: result.data.id,
-              name: result.data.name || 'Unknown User',
-              email: result.data.email || '',
-              image: result.data.avatar ?? result.data.image ?? undefined,
-              role: result.data.usertype ?? result.data.role ?? 'Admin',
-              department: result.data.department || 'Administration',
-              phone: result.data.phone || '',
-              location: result.data.address ?? result.data.profile?.address ?? '',
-              timezone: result.data.timezone || userTimezone,
-              createdAt: result.data.created_at ?? result.data.createdAt ?? new Date().toISOString(),
-              lastLoginAt: result.data.last_login_at ?? result.data.lastLoginAt,
-              bio: result.data.bio || '',
-              skills: result.data.skills || [],
-              stats: result.data.stats || {
-                projectsCompleted: 0,
-                totalTasks: 0,
-                teamMembers: 0,
-                successRate: 0
-              },
-              preferences: result.data.preferences || {
-                emailNotifications: false,
-                pushNotifications: false,
-                weeklyReports: false,
-                taskReminders: false,
-                theme: 'light'
-              },
-              recentActivity: result.data.recentActivity || [],
-              recentLogins: (result.data.recent_logins ?? result.data.recentLogins) as RecentLogin[] ?? []
-            };
-          }
-        }
-      } catch (apiError) {
-        console.error('Error fetching from API:', apiError);
-      }
-
-      // Fallback to session data
-      if (!profileData) {
-        const s = session.user as unknown as Record<string, unknown>;
-        profileData = {
-          id: String(s.id ?? ''),
-          name: String(s.name ?? 'Unknown User'),
-          email: String(s.email ?? ''),
-          image: (s.avatar ?? s.image) as string | undefined,
-          role: (s.usertype ?? s.role) as string | undefined,
-          department: 'Administration',
-          phone: String(s.phone ?? ''),
-          location: String(s.location ?? ''),
-          timezone: String(s.timezone ?? userTimezone),
-          createdAt: String(s.created_at ?? s.createdAt ?? new Date().toISOString()),
-          lastLoginAt: String(s.last_login_at ?? s.lastLoginAt ?? '') || undefined,
-          bio: String(s.bio ?? ''),
-          skills: (s.skills as string[]) || [],
-          stats: {
-            projectsCompleted: 5,
-            totalTasks: 23,
-            teamMembers: 8,
-            successRate: 92
-          },
-          preferences: (s.preferences as unknown as Partial<Profile>['preferences']) || {
-            emailNotifications: true,
-            pushNotifications: true,
-            weeklyReports: false,
-            taskReminders: true,
-            theme: 'light'
-          },
-          recentActivity: [],
-          recentLogins: (s.recent_logins as unknown as RecentLogin[]) || (s.recentLogins as unknown as RecentLogin[]) || []
-        };
-      }
-
-      if (mounted) {
-        setProfile(profileData);
-        setEditForm(profileData as Partial<Profile>);
-        setLoading(false);
-      }
+    // Use session data directly - no API calls needed
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    const profileData: Profile = {
+      id: user.id,
+      name: user.name || 'Unknown User',
+      email: user.email || '',
+      avatar: user.avatar,
+      usertype: user.usertype || 'User',
+      phone: user.phone || '',
+      address: user.address || '',
+      timezone: user.timezone || userTimezone,
+      created_at: user.created_at,
+      bio: user.bio || '',
+      display_name: user.display_name || '',
+      preferences: {
+        emailNotifications: user.email_notification ?? true,
+        pushNotifications: user.push_notifications ?? false,
+        weeklyReports: (user.preferences as Record<string, unknown>)?.weeklyReports as boolean ?? false,
+        taskReminders: (user.preferences as Record<string, unknown>)?.taskReminders as boolean ?? true,
+      },
+      skills: (user.metadata as Record<string, unknown>)?.skills as string[] || []
     };
 
-    load();
-
-    return () => { mounted = false; };
-  }, [status, session, profile]);
+    setProfile(profileData);
+    setEditForm(profileData);
+    setLoading(false);
+  }, [user, userLoading]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -214,15 +114,20 @@ export default function AdminProfile() {
     try {
       setSaving(true);
 
-      // Only send editable fields
-      // PUT /api/profile expects schema-backed keys: phone, address, avatar, display_name, bio, locale, timezone, preferences
+      // Prepare update data for API
       const updateData = {
         phone: editForm.phone || '',
         bio: editForm.bio || '',
-        skills: editForm.skills || [],
-        // map UI "location" -> API "address"
-        address: editForm.location || editForm.location === '' ? '' : (editForm.location as string) || '',
-        preferences: editForm.preferences
+        address: editForm.address || '',
+        display_name: editForm.display_name || '',
+        timezone: editForm.timezone || profile.timezone,
+        preferences: {
+          ...profile.preferences,
+          ...editForm.preferences
+        },
+        metadata: {
+          skills: editForm.skills || []
+        }
       };
 
       console.log('Saving profile data:', updateData);
@@ -235,34 +140,27 @@ export default function AdminProfile() {
         body: JSON.stringify(updateData),
       });
 
-      console.log('Response status:', response.status);
-
       if (response.ok) {
         const result = await response.json();
         console.log('Update result:', result);
 
         if (result.success) {
-          // Update profile with response data, preserving all existing data
+          // Update profile with the saved data
           const updatedProfile: Profile = {
             ...profile,
-            phone: result.data.phone || updateData.phone,
-            bio: result.data.bio || updateData.bio,
-            skills: result.data.skills || updateData.skills,
-            location: result.data.address ?? result.data.profile?.address ?? updateData.address,
-            preferences: {
-              ...profile.preferences,
-              ...updateData.preferences
-            }
+            phone: updateData.phone,
+            bio: updateData.bio,
+            address: updateData.address,
+            display_name: updateData.display_name,
+            timezone: updateData.timezone,
+            preferences: updateData.preferences,
+            skills: updateData.metadata.skills
           };
 
-          console.log('Updated profile:', updatedProfile);
           setProfile(updatedProfile);
           setEditForm(updatedProfile);
           setIsEditing(false);
-
-          // Store in localStorage as backup
-          localStorage.setItem('profileData', JSON.stringify(updatedProfile));
-          console.log('Profile updated and saved successfully');
+          console.log('Profile updated successfully');
         } else {
           console.error('Update failed:', result.error);
           alert('Failed to update profile: ' + (result.error || 'Unknown error'));
@@ -291,20 +189,11 @@ export default function AdminProfile() {
     if (!profile) return;
 
     // Update the UI immediately
-    const currentPreferences = {
-      emailNotifications: profile.preferences?.emailNotifications ?? true,
-      pushNotifications: profile.preferences?.pushNotifications ?? true,
-      weeklyReports: profile.preferences?.weeklyReports ?? false,
-      taskReminders: profile.preferences?.taskReminders ?? true,
-      theme: profile.preferences?.theme ?? 'light'
-    };
-
     const updatedPreferences = {
-      ...currentPreferences,
+      ...profile.preferences,
       [preference]: value
     };
 
-    // Update both profile and editForm
     const updatedProfile = {
       ...profile,
       preferences: updatedPreferences
@@ -318,12 +207,16 @@ export default function AdminProfile() {
       const updateData = {
         phone: profile.phone || '',
         bio: profile.bio || '',
-        skills: profile.skills || [],
-        address: profile.location || '',
-        preferences: updatedPreferences
+        address: profile.address || '',
+        display_name: profile.display_name || '',
+        timezone: profile.timezone || '',
+        preferences: updatedPreferences,
+        metadata: {
+          skills: profile.skills || []
+        }
       };
 
-      console.log('Saving preference change:', preference, value, updatedPreferences);
+      console.log('Saving preference change:', preference, value);
 
       const response = await fetch('/api/profile', {
         method: 'PUT',
@@ -341,8 +234,6 @@ export default function AdminProfile() {
         alert('Failed to save preference. Please try again.');
       } else {
         console.log('Preference saved successfully');
-        // Store in localStorage as backup
-        localStorage.setItem('profileData', JSON.stringify(updatedProfile));
       }
     } catch (error) {
       console.error('Error saving preference:', error);
@@ -361,7 +252,6 @@ export default function AdminProfile() {
         ...prev,
         skills: updatedSkills
       }));
-      console.log('Added skill:', trimmedSkill, 'Total skills:', updatedSkills);
     }
   };
 
@@ -371,10 +261,10 @@ export default function AdminProfile() {
       ...prev,
       skills: updatedSkills
     }));
-    console.log('Removed skill:', skillToRemove, 'Remaining skills:', updatedSkills);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | Date | null) => {
+    if (!dateString) return 'Unknown';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -386,7 +276,7 @@ export default function AdminProfile() {
     return name.split(' ').map(n => n.charAt(0)).join('').toUpperCase();
   };
 
-  if (loading) {
+  if (loading || userLoading) {
     return (
       <>
         <Header
@@ -450,15 +340,15 @@ export default function AdminProfile() {
       />
 
       <main className="flex-1 p-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="mx-auto">
           {/* Profile Header */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
             <div className="px-6 py-8">
               <div className="flex items-start justify-between">
                 <div className="flex items-center">
-                  {profile.image ? (
+                  {profile.avatar ? (
                     <div className="w-24 h-24 relative rounded-full overflow-hidden mr-6">
-                      <Image src={profile.image} alt={profile.name} fill sizes="96px" className="object-cover" />
+                      <Image src={profile.avatar} alt={profile.name} fill sizes="96px" className="object-cover" />
                     </div>
                   ) : (
                     <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-2xl font-bold text-white mr-6">
@@ -466,13 +356,11 @@ export default function AdminProfile() {
                     </div>
                   )}
                   <div>
-                    {/* Name is not editable */}
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{profile.name}</h1>
-
-                    {/* Role is not editable */}
-                    <p className="text-lg text-gray-600 mb-1">{profile.role}</p>
-
-                    <p className="text-sm text-gray-500">{profile.department}</p>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                      {profile.display_name || profile.name}
+                    </h1>
+                    <p className="text-lg text-gray-600 mb-1">{profile.usertype}</p>
+                                    <p className="text-sm text-gray-500">Member since {formatDate(profile.created_at ?? null)}</p>
                   </div>
                 </div>
 
@@ -499,7 +387,6 @@ export default function AdminProfile() {
                 <div className="px-6 py-4 space-y-4">
                   <div className="flex items-center">
                     <MailIcon className="h-5 w-5 text-gray-400 mr-3" />
-                    {/* Email is not editable */}
                     <span className="text-gray-900">{profile.email}</span>
                   </div>
                   <div className="flex items-center">
@@ -520,13 +407,13 @@ export default function AdminProfile() {
                     <MapPinIcon className="h-5 w-5 text-gray-400 mr-3 mt-1 flex-shrink-0" />
                     {isEditing ? (
                       <LocationSuggestion
-                        value={editForm.location || ''}
-                        onChange={(value) => handleInputChange('location', value)}
+                        value={editForm.address || ''}
+                        onChange={(value) => handleInputChange('address', value)}
                         placeholder="Add your location"
                         className="flex-1"
                       />
                     ) : (
-                      <span className="text-gray-900">{profile.location || 'No location specified'}</span>
+                      <span className="text-gray-900">{profile.address || 'No location specified'}</span>
                     )}
                   </div>
                   <div className="flex items-center">
@@ -535,7 +422,7 @@ export default function AdminProfile() {
                   </div>
                   <div className="flex items-center">
                     <CalendarIcon className="h-5 w-5 text-gray-400 mr-3" />
-                    <span className="text-gray-900">Joined {formatDate(profile.createdAt)}</span>
+                    <span className="text-gray-900">Joined {formatDate(profile.created_at ?? null)}</span>
                   </div>
                 </div>
               </div>
@@ -620,47 +507,8 @@ export default function AdminProfile() {
               </div>
             </div>
 
-            {/* Right Column - Stats & Activity */}
+            {/* Right Column - Preferences */}
             <div className="space-y-6">
-              {/* Stats */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-900">Statistics</h2>
-                </div>
-                <div className="px-6 py-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <FolderIcon className="h-5 w-5 text-blue-500 mr-2" />
-                      <span className="text-sm text-gray-600">Projects Completed</span>
-                    </div>
-                    <span className="font-semibold text-gray-900">{profile.stats.projectsCompleted}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
-                      <span className="text-sm text-gray-600">Total Tasks</span>
-                    </div>
-                    <span className="font-semibold text-gray-900">{profile.stats.totalTasks}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <UsersIcon className="h-5 w-5 text-purple-500 mr-2" />
-                      <span className="text-sm text-gray-600">Team Members</span>
-                    </div>
-                    <span className="font-semibold text-gray-900">{profile.stats.teamMembers}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <TrendingUpIcon className="h-5 w-5 text-yellow-500 mr-2" />
-                      <span className="text-sm text-gray-600">Success Rate</span>
-                    </div>
-                    <span className="font-semibold text-gray-900">{profile.stats.successRate}%</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent Login Activity removed — consolidated in UserLoginStats component */}
-
               {/* Preferences */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                 <div className="px-6 py-4 border-b border-gray-200">
@@ -671,84 +519,58 @@ export default function AdminProfile() {
                     <span className="text-sm text-gray-600">Email Notifications</span>
                     <button
                       onClick={() => handlePreferenceChange('emailNotifications', !profile?.preferences?.emailNotifications)}
-                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${profile?.preferences?.emailNotifications ? 'bg-blue-500' : 'bg-gray-300'
-                        }`}
+                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${
+                        profile?.preferences?.emailNotifications ? 'bg-blue-500' : 'bg-gray-300'
+                      }`}
                     >
-                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${profile?.preferences?.emailNotifications ? 'translate-x-5' : 'translate-x-1'
-                        }`}></div>
+                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${
+                        profile?.preferences?.emailNotifications ? 'translate-x-5' : 'translate-x-1'
+                      }`}></div>
                     </button>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Push Notifications</span>
                     <button
                       onClick={() => handlePreferenceChange('pushNotifications', !profile?.preferences?.pushNotifications)}
-                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${profile?.preferences?.pushNotifications ? 'bg-blue-500' : 'bg-gray-300'
-                        }`}
+                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${
+                        profile?.preferences?.pushNotifications ? 'bg-blue-500' : 'bg-gray-300'
+                      }`}
                     >
-                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${profile?.preferences?.pushNotifications ? 'translate-x-5' : 'translate-x-1'
-                        }`}></div>
+                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${
+                        profile?.preferences?.pushNotifications ? 'translate-x-5' : 'translate-x-1'
+                      }`}></div>
                     </button>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Weekly Reports</span>
                     <button
                       onClick={() => handlePreferenceChange('weeklyReports', !profile?.preferences?.weeklyReports)}
-                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${profile?.preferences?.weeklyReports ? 'bg-blue-500' : 'bg-gray-300'
-                        }`}
+                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${
+                        profile?.preferences?.weeklyReports ? 'bg-blue-500' : 'bg-gray-300'
+                      }`}
                     >
-                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${profile?.preferences?.weeklyReports ? 'translate-x-5' : 'translate-x-1'
-                        }`}></div>
+                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${
+                        profile?.preferences?.weeklyReports ? 'translate-x-5' : 'translate-x-1'
+                      }`}></div>
                     </button>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Task Reminders</span>
                     <button
                       onClick={() => handlePreferenceChange('taskReminders', !profile?.preferences?.taskReminders)}
-                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${profile?.preferences?.taskReminders ? 'bg-blue-500' : 'bg-gray-300'
-                        }`}
+                      className={`w-10 h-6 rounded-full relative transition-colors cursor-pointer ${
+                        profile?.preferences?.taskReminders ? 'bg-blue-500' : 'bg-gray-300'
+                      }`}
                     >
-                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${profile?.preferences?.taskReminders ? 'translate-x-5' : 'translate-x-1'
-                        }`}></div>
+                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${
+                        profile?.preferences?.taskReminders ? 'translate-x-5' : 'translate-x-1'
+                      }`}></div>
                     </button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Recent Login Activity */}
-          {profile.recentLogins && profile.recentLogins.length > 0 && (
-            <div className="mt-6">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-900">Recent Login Activity</h2>
-                </div>
-                <div className="px-6 py-4">
-                  <div className="space-y-3">
-                    {profile.recentLogins.map((login) => (
-                      <div key={login.id} className="flex items-start justify-between py-2 border-b border-gray-100 last:border-b-0">
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-900 font-medium">
-                            {login.success ? 'Successful Login' : 'Failed Login'}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {formatDate(login.loginAt)} via {login.provider || 'Unknown'}
-                          </p>
-                          {login.ipAddress && (
-                            <p className="text-xs text-gray-400 mt-0.5">
-                              IP: {login.ipAddress}
-                            </p>
-                          )}
-                        </div>
-                        <div className={`w-2 h-2 rounded-full mt-2 ${login.success ? 'bg-green-500' : 'bg-red-500'
-                          }`}></div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </main>
     </>

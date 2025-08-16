@@ -4,7 +4,7 @@ import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from "next-auth/providers/credentials";
 import db from '@/config/database';
 import drizzleAdapter from '../drizzleAdapter';
-import { users, oauth_accounts, usersInterface, activity_logs } from '@/drizzle/schema';
+import { users, oauth_accounts, usersInterface, activity_logs, user_profiles, user_settings } from '@/drizzle/schema';
 import { randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -112,21 +112,59 @@ const authOptions: AuthOptions = {
         async redirect({ url, baseUrl }) {
             return url.startsWith(baseUrl) ? url : baseUrl;
         },
-        async session({ session, token, trigger }) {
+        async session({ session, token }) {
             // Defensive session handling: only treat token.user.id as our DB UUID if it looks like one.
             const tokenUser = token.user as unknown as Record<string, unknown> | undefined;
             const id = tokenUser?.id;
             const looksLikeUUID = typeof id === 'string' && id.length === 36 && id.includes('-');
 
             if (looksLikeUUID) {
-                // safe to use as DB id
-                session.user = tokenUser as unknown as usersInterface;
+                // Load full merged profile data for DB users
+                try {
+                    const userId = id as string;
+                    
+                    // Get user data
+                    const [u] = await db.select().from(users).where(eq(users.id, userId)).execute();
+                    if (!u) return session;
 
-                if (trigger === 'update') {
-                    const user = await db.select().from(users).where(eq(users.id, session.user.id)).execute();
-                    if (user.length === 0) return session;
-                    session.user = user[0] as unknown as usersInterface;
+                    // Get profile and settings data
+                    const [profile] = await db.select().from(user_profiles).where(eq(user_profiles.user_id, userId)).execute();
+                    const [settings] = await db.select().from(user_settings).where(eq(user_settings.user_id, userId)).execute();
+
+                    // Create merged session user with all frequently needed data
+                    const mergedUser = {
+                        id: u.id,
+                        name: u.name,
+                        email: u.email,
+                        avatar: u.avatar ?? null,
+                        phone: u.phone ?? null,
+                        address: u.address ?? null,
+                        usertype: u.usertype ?? null,
+                        is_prime: u.is_prime ?? false,
+                        email_notification: u.email_notification ?? true,
+                        is_verified: u.is_verified ?? false,
+                        created_at: u.created_at ?? null,
+                        updated_at: u.updated_at ?? null,
+                        // Profile data
+                        display_name: profile?.display_name ?? null,
+                        bio: profile?.bio ?? null,
+                        locale: profile?.locale ?? null,
+                        timezone: profile?.timezone ?? null,
+                        social: profile?.social ?? null,
+                        metadata: profile?.metadata ?? null,
+                        // Settings data
+                        preferences: settings?.preferences ?? null,
+                        push_notifications: settings?.push_notifications ?? false,
+                    };
+
+                    session.user = mergedUser as unknown as usersInterface;
+                    
+                } catch (error) {
+                    console.error('Error loading merged profile in session:', error);
+                    // Fallback to basic user data from token
+                    session.user = stripSensitive(tokenUser as Record<string, unknown>) as unknown as usersInterface;
                 }
+
                 return session;
             }
 

@@ -1,21 +1,23 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/authOptions';
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
-    return NextResponse.json({ 
+    return NextResponse.json({
       status: 'success',
-      session: session ? {
-        user: {
-          id: session.user?.id,
-          name: session.user?.name,
-          email: session.user?.email,
-          image: session.user?.image
-        }
-      } : null
+      session: session
+        ? {
+            user: {
+              id: session.user?.id,
+              name: session.user?.name,
+              email: session.user?.email,
+              avatar: (session.user as any)?.avatar ?? null,
+            },
+          }
+        : null,
     });
   } catch (error) {
     console.error('Session check error:', error);
