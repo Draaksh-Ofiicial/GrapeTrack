@@ -1,0 +1,150 @@
+<html>
+  <head>
+    <meta charset='utf-8' />
+    <title>Confirm Organization Deletion</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        border-bottom: 2px solid #dc3545;
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+      }
+      .logo {
+        font-size: 24px;
+        font-weight: bold;
+        color: #dc3545;
+      }
+      .content {
+        margin: 20px 0;
+      }
+      .warning-box {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+        color: #721c24;
+      }
+      .warning-box strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 16px;
+      }
+      .button {
+        display: inline-block;
+        background-color: #dc3545;
+        color: #fff !important;
+        padding: 12px 30px;
+        text-decoration: none;
+        border-radius: 4px;
+        margin: 20px 0;
+        font-weight: bold;
+      }
+      .button:hover {
+        background-color: #c82333;
+      }
+      .cancel-button {
+        display: inline-block;
+        background-color: #6c757d;
+        color: #fff;
+        padding: 12px 30px;
+        text-decoration: none;
+        border-radius: 4px;
+        margin: 20px 10px 20px 0;
+        font-weight: bold;
+      }
+      .cancel-button:hover {
+        background-color: #545b62;
+      }
+      .footer {
+        border-top: 1px solid #eee;
+        padding-top: 15px;
+        margin-top: 20px;
+        font-size: 12px;
+        color: #666;
+      }
+      .expiry-notice {
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 15px 0;
+        font-size: 14px;
+        color: #856404;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <div class='header'>
+        <div class='logo'>GrapeTrack</div>
+      </div>
+
+      <div class='content'>
+        <p>Hello,</p>
+
+        <p>You have requested to delete the organization
+          <strong>{{organizationName}}</strong>
+          from GrapeTrack.</p>
+
+        <div class='warning-box'>
+          <strong>⚠️ Warning: This action cannot be undone!</strong>
+          <p>Deleting this organization will permanently remove:</p>
+          <ul>
+            <li>All tasks and projects</li>
+            <li>All team members and their access</li>
+            <li>All roles and permissions</li>
+            <li>All activity history and comments</li>
+          </ul>
+        </div>
+
+        <p>If you are certain you want to proceed with the deletion, click the
+          button below:</p>
+
+        <center>
+          <a href='{{confirmLink}}' class='button'>Confirm Organization Deletion</a>
+        </center>
+
+        <p>Or copy and paste this link in your browser:</p>
+        <p><code>{{confirmLink}}</code></p>
+
+        <div class='expiry-notice'>
+          <strong>⏰ Important:</strong>
+          This confirmation link will expire in
+          {{expiryHours}}
+          hours. After that, you'll need to start the deletion process again.
+        </div>
+
+        <p>If you did not request this deletion or have changed your mind, you
+          can safely ignore this email. The organization will remain intact.</p>
+
+        <p>For security reasons, we recommend reviewing your organization's data
+          before confirming the deletion.</p>
+
+        <p>Best regards,<br />The GrapeTrack Team</p>
+      </div>
+
+      <div class='footer'>
+        <p>© 2025 GrapeTrack. All rights reserved.</p>
+        <p>This is an automated email. Please do not reply directly to this
+          message.</p>
+        <p>If you have any questions, please contact our support team.</p>
+      </div>
+    </div>
+  </body>
+</html>

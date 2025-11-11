@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+        .task-details { background: white; padding: 20px; border-left: 4px solid #38ef7d; margin: 20px 0; border-radius: 4px; }
+        .detail-row { margin: 12px 0; }
+        .label { font-weight: 600; color: #11998e; }
+        .button { display: inline-block; background: #11998e; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin-top: 20px; }
+        .footer { text-align: center; font-size: 12px; color: #999; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+        .success-badge { display: inline-block; background: #38ef7d; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✅ Task Completed</h1>
+        </div>
+        <div class="content">
+            <p>Hi {{completedByName}},</p>
+            <p>Great work! You have successfully completed a task in {{organizationName}}.</p>
+            
+            <div class="task-details">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <span class="success-badge">COMPLETED</span>
+                </div>
+                <div class="detail-row">
+                    <div class="label">Task:</div>
+                    <div>{{taskTitle}}</div>
+                </div>
+                {{#if completedAt}}
+                <div class="detail-row">
+                    <div class="label">Completed On:</div>
+                    <div>{{completedAt}}</div>
+                </div>
+                {{/if}}
+                {{#if priority}}
+                <div class="detail-row">
+                    <div class="label">Priority:</div>
+                    <div>{{priority}}</div>
+                </div>
+                {{/if}}
+            </div>
+            
+            <p>Your task has been marked as complete. Keep up the great work!</p>
+            <a href="{{taskUrl}}" class="button">View Task</a>
+            
+            <div class="footer">
+                <p>This is an automated notification from {{organizationName}}.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

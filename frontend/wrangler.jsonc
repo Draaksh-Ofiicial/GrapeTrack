@@ -1,0 +1,15 @@
+{
+    "name": "grape-track",
+    "compatibility_date": "2025-11-09",
+    "assets": {
+        "directory": "./dist"
+    },
+    "env": {
+        "production": {
+            "vars": {
+                "VITE_API_URL": "https://backend-rust-six-30.vercel.app/api",
+                "VITE_GOOGLE_CLIENT_ID": "your-google-client-id"
+            }
+        }
+    }
+}
