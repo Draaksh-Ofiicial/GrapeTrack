@@ -1,7 +1,7 @@
 .vscode
 
-!README.md
 *.md
+!README.md
 
 node_modules/
 
