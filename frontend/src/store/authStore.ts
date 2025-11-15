@@ -97,7 +97,7 @@ export const useAuthStore = create<AuthStore>()(
                 try {
                     const response = await authApi.me();
                     set({
-                        user: response.user,
+                        user: response.data.user,
                         error: null,
                     });
                 } catch (error) {
@@ -176,11 +176,12 @@ export const useAuthStore = create<AuthStore>()(
 
                 try {
                     // Try to get current user (will work if valid access token exists)
+                    // The API client will automatically refresh the token if needed
                     const response = await authApi.me();
 
                     set({
                         isAuthenticated: true,
-                        user: response.user,
+                        user: response.data.user,
                         hasValidTokens: true,
                         lastTokenRefresh: new Date().toISOString(),
                         isLoading: false,
@@ -190,17 +191,17 @@ export const useAuthStore = create<AuthStore>()(
 
                     // If user has an active organization stored, re-select it to get proper permissions
                     const { activeOrganization } = get();
-                    if (activeOrganization && response.user.organizations) {
-                        const orgExists = response.user.organizations.find(
+                    if (activeOrganization && response.data.user.organizations) {
+                        const orgExists = response.data.user.organizations.find(
                             org => org.organizationId === activeOrganization.id
                         );
                         if (orgExists) {
                             // Re-select the organization to get fresh permissions
                             try {
-                                await authApi.selectOrganization(activeOrganization.id);
+                                await authApi.selectOrganization({ organizationId: activeOrganization.id });
                                 // Refresh user data again to get permissions
                                 const updatedResponse = await authApi.me();
-                                set({ user: updatedResponse.user });
+                                set({ user: updatedResponse.data.user });
                             } catch (selectError) {
                                 console.error('Failed to re-select organization:', selectError);
                                 // Clear the active organization if selection fails
@@ -218,70 +219,40 @@ export const useAuthStore = create<AuthStore>()(
                         }
                     }
                 } catch (error: unknown) {
-                    // If getting user fails due to 401, try to refresh token
-                    const isUnauthorized = error &&
-                        typeof error === 'object' &&
-                        'response' in error &&
-                        (error as { response: { status: number } }).response?.status === 401;
-
-                    if (isUnauthorized) {
+                    // If initialization fails, the interceptor already tried to refresh
+                    // So we can assume the user needs to login
+                    console.error('Auth initialization failed:', error);
+                    
+                    // Don't clear everything - preserve some state for the select-organization page
+                    // Check if we have user data in localStorage that we can use temporarily
+                    const persistedState = localStorage.getItem('auth-storage');
+                    if (persistedState) {
                         try {
-                            await authApi.refresh(); // This will get a new token, possibly with org context
-
-                            // Retry getting user after refresh
-                            const response = await authApi.me();
-
-                            set({
-                                isAuthenticated: true,
-                                user: response.user,
-                                hasValidTokens: true,
-                                lastTokenRefresh: new Date().toISOString(),
-                                isLoading: false,
-                                isInitializing: false,
-                                error: null,
-                            });
-
-                            // Re-select organization after refresh if needed
-                            const { activeOrganization } = get();
-                            if (activeOrganization && response.user.organizations) {
-                                const orgExists = response.user.organizations.find(
-                                    org => org.organizationId === activeOrganization.id
-                                );
-                                if (orgExists) {
-                                    try {
-                                        await authApi.selectOrganization(activeOrganization.id);
-                                        const updatedResponse = await authApi.me();
-                                        set({ user: updatedResponse.user });
-                                    } catch (selectError) {
-                                        console.error('Failed to re-select organization after refresh:', selectError);
-                                        set({
-                                            activeOrganization: null,
-                                            hasSelectedOrganization: false,
-                                        });
-                                    }
-                                } else {
-                                    set({
-                                        activeOrganization: null,
-                                        hasSelectedOrganization: false,
-                                    });
-                                }
+                            const parsed = JSON.parse(persistedState);
+                            // If we have persisted user data, keep them authenticated
+                            // but mark tokens as invalid so they know to re-authenticate
+                            if (parsed.state?.user) {
+                                set({
+                                    isAuthenticated: true,
+                                    user: parsed.state.user,
+                                    hasValidTokens: false,
+                                    isLoading: false,
+                                    isInitializing: false,
+                                    error: null,
+                                });
+                                return;
                             }
-                        } catch {
-                            // Both user fetch and refresh failed - user needs to login
-                            set({
-                                ...initialState,
-                                isLoading: false,
-                                isInitializing: false,
-                            });
+                        } catch (parseError) {
+                            console.error('Failed to parse persisted state:', parseError);
                         }
-                    } else {
-                        set({
-                            ...initialState,
-                            isLoading: false,
-                            isInitializing: false,
-                            error: 'Failed to initialize authentication',
-                        });
                     }
+
+                    // No valid persisted state - clear everything
+                    set({
+                        ...initialState,
+                        isLoading: false,
+                        isInitializing: false,
+                    });
                 }
             },
         }),

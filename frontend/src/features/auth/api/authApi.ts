@@ -36,7 +36,7 @@ export const authApi = {
     apiClient.get<OrganizationsResponse>('/auth/organizations'),
 
   selectOrganization: (data: SelectOrganizationRequest) =>
-    apiClient.post<SelectOrganizationResponse>('/auth/switch-org', data),
+    apiClient.post<SelectOrganizationResponse>('/auth/select-organization', data),
 
   // Google OAuth
   googleAuth: () =>

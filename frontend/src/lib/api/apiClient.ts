@@ -37,6 +37,37 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: AxiosError) => {
+    const originalRequest = error.config;
+
+    // If error is 401 and we haven't retried yet, attempt to refresh token
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        // Attempt to refresh the access token
+        await axios.post(
+          `${import.meta.env.VITE_API_URL || '/api'}/auth/refresh`,
+          {},
+          {
+            withCredentials: true,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        // Retry the original request with the new token (cookie will be automatically included)
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed - user needs to login again
+        console.error('Token refresh failed:', refreshError);
+        // Clear local storage and redirect to login
+        localStorage.removeItem('auth-storage');
+        window.location.href = '/auth/login';
+        return Promise.reject(refreshError);
+      }
+    }
+
     // Handle other common errors
     if (error.response) {
       switch (error.response.status) {
@@ -51,7 +82,9 @@ apiClient.interceptors.response.use(
           console.error('Server error - please try again later');
           break;
         default:
-          console.error(`Error ${error.response.status}: ${error.message}`);
+          if (error.response.status !== 401) {
+            console.error(`Error ${error.response.status}: ${error.message}`);
+          }
       }
     } else if (error.request) {
       // Request made but no response received
